@@ -5,9 +5,7 @@
   "main": "main/main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder",
-    "test": "playwright test",
-    "test:all": "playwright test"
+    "dist": "electron-builder"
   },
   "build": {
     "appId": "com.pens.app",
@@ -18,10 +16,7 @@
       "!**/*.map",
       "!**/*.ts",
       "!**/*.md",
-      "!tests/**/*",
-      "!scratch/**/*",
       "!.github/**/*",
-      "!security-test.html",
       "!*.js",
       "main/**/*.js",
       "renderer/**/*",
@@ -32,9 +27,7 @@
       "target": [
         "nsis",
         "portable"
-      ],
-      "publisherName": "Your Name Here",
-      "certificateSubjectName": "Your Name Here"
+      ]
     },
     "nsis": {
       "oneClick": false,
