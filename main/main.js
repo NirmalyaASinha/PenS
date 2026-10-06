@@ -313,7 +313,6 @@ secureHandle('webview:printToPdf', z.tuple([z.number()]), async (e, profileId, w
   if (!wc) return null;
   try {
     const data = await wc.printToPDF({ printBackground: true, pageSize: 'A4' });
-    const profileId = getProfileIdFromEvent(e);
     const dir = path.join(profileManager.getNotesPath(profileId), 'Snapshots');
     fs.mkdirSync(dir, { recursive: true });
     const filePath = path.join(dir, `snapshot-${Date.now()}.pdf`);

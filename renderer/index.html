@@ -35,7 +35,7 @@
       <div class="address-bar-container">
         <svg class="url-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
         <input type="text" id="address-bar" placeholder="Search Google or enter web address..." />
-        <button id="btn-save-toggle" class="save-toggle active" title="Save notes for this URL (On)">
+        <button id="btn-save-toggle" class="save-toggle" title="Keep notes for this website (Off - Click to save for next visit)">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
         </button>
       </div>
@@ -159,6 +159,38 @@
             <div class="color-swatch" style="background-color: #202124;" data-color="#202124"></div>
             <div class="color-swatch" style="background-color: #ffffff;" data-color="#ffffff"></div>
           </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Unsaved Sketch Decision Modal -->
+    <div id="sketch-prompt-modal" class="modal-backdrop" style="display: none;">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-badge-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+            </svg>
+          </div>
+          <div class="modal-title-wrap">
+            <h3 class="modal-title">Unsaved Webpage Sketch</h3>
+            <p class="modal-subtitle">You have handwritten notes on this webpage. What would you like to do before leaving?</p>
+          </div>
+        </div>
+        <div class="modal-body">
+          <div id="modal-page-info" class="modal-page-url"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="modal-btn-cancel" class="modal-btn modal-btn-secondary" title="Stay on this page">Cancel</button>
+          <button id="modal-btn-discard" class="modal-btn modal-btn-danger" title="Discard this sketch">Don't Save</button>
+          <button id="modal-btn-pdf" class="modal-btn modal-btn-outline" title="Export this page with notes as a PDF document">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+            Export to PDF
+          </button>
+          <button id="modal-btn-save" class="modal-btn modal-btn-primary" title="Keep notes for this website whenever opened">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+            Save for Next Visit
+          </button>
         </div>
       </div>
     </div>

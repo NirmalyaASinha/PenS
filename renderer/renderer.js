@@ -225,7 +225,6 @@ const btnSaveToggle = document.getElementById('btn-save-toggle');
 let closedTabs = []; // Stack for closed tabs
 
 function updateSaveToggleUI(tab) {
-  // ... (keep existing)
   if (!tab || tab.isPdf || tab.url === 'pens://home' || tab.url.startsWith('pens://')) {
     btnSaveToggle.style.display = 'none';
   } else {
@@ -233,25 +232,111 @@ function updateSaveToggleUI(tab) {
     if (tab.saveEnabled) {
       btnSaveToggle.classList.add('active');
       const urlId = tab.url ? tab.url.split('?')[0].split('#')[0] : '';
-      btnSaveToggle.title = `Save notes for this URL (On)\nSaving to: ${urlId}`;
+      btnSaveToggle.title = `Keep notes for this website (On - Will be saved for next visit)\nSaved to: ${urlId}`;
     } else {
       btnSaveToggle.classList.remove('active');
-      btnSaveToggle.title = `Save notes for this URL (Off)`;
+      btnSaveToggle.title = `Keep notes for this website (Off - Click to save for next visit)`;
     }
   }
 }
 
-btnSaveToggle.addEventListener('click', () => {
+btnSaveToggle.addEventListener('click', async () => {
   const tab = getActiveTab();
   if (tab && !tab.isPdf && !tab.url.startsWith('pens://')) {
     tab.saveEnabled = !tab.saveEnabled;
     updateSaveToggleUI(tab);
+    if (tab.saveEnabled) {
+      const urlId = tab.url ? tab.url.split('?')[0].split('#')[0] : '';
+      if (urlId && tab.currentStrokes && tab.currentStrokes.length > 0) {
+        const data = {
+          version: 1,
+          source: { type: 'web', url: tab.url },
+          strokes: tab.currentStrokes,
+          thumbnail: tab.currentThumbnail || ''
+        };
+        await window.electronAPI.saveNotes(urlId, data);
+      }
+    }
   }
 });
 
-function getActiveTab() { return tabs.find(t => t.id === activeTabId); }
+function promptUnsavedSketch(tab) {
+  return new Promise((resolve) => {
+    if (!tab || tab.isPdf || !tab.url || tab.url.startsWith('pens://')) {
+      return resolve('proceed');
+    }
+    // If the user already enabled saving for this website, notes are kept
+    if (tab.saveEnabled) {
+      return resolve('proceed');
+    }
+    // Check if there are actual strokes on the page
+    const hasStrokes = tab.currentStrokes && tab.currentStrokes.length > 0;
+    if (!hasStrokes) {
+      return resolve('proceed');
+    }
 
-// ... createPdfTab ... (skip replacing it, actually I can just do a precise replace for closeTab and keydown)
+    const modal = document.getElementById('sketch-prompt-modal');
+    const pageInfo = document.getElementById('modal-page-info');
+    const btnSave = document.getElementById('modal-btn-save');
+    const btnPdf = document.getElementById('modal-btn-pdf');
+    const btnDiscard = document.getElementById('modal-btn-discard');
+    const btnCancel = document.getElementById('modal-btn-cancel');
+
+    if (!modal) return resolve('proceed');
+
+    pageInfo.textContent = tab.url;
+    modal.style.display = 'flex';
+
+    const cleanup = () => {
+      modal.style.display = 'none';
+      btnSave.onclick = null;
+      btnPdf.onclick = null;
+      btnDiscard.onclick = null;
+      btnCancel.onclick = null;
+    };
+
+    btnSave.onclick = async () => {
+      cleanup();
+      const urlId = tab.url.split('?')[0].split('#')[0];
+      const data = {
+        version: 1,
+        source: { type: 'web', url: tab.url },
+        strokes: tab.currentStrokes,
+        thumbnail: tab.currentThumbnail || ''
+      };
+      await window.electronAPI.saveNotes(urlId, data);
+      tab.saveEnabled = true;
+      updateSaveToggleUI(tab);
+      resolve('proceed');
+    };
+
+    btnPdf.onclick = async () => {
+      cleanup();
+      if (tab.webview && window.electronAPI && window.electronAPI.printToPdf) {
+        try {
+          const wcId = tab.webview.getWebContentsId();
+          const pdfPath = await window.electronAPI.printToPdf(wcId);
+          if (pdfPath) {
+            alert(`Sketch exported to PDF:\n${pdfPath}`);
+          }
+        } catch (err) {
+          console.error('Failed to export PDF:', err);
+        }
+      }
+      resolve('proceed');
+    };
+
+    btnDiscard.onclick = () => {
+      cleanup();
+      resolve('proceed');
+    };
+
+    btnCancel.onclick = () => {
+      cleanup();
+      resolve('cancel');
+    };
+  });
+}
 
 function getActiveTab() { return tabs.find(t => t.id === activeTabId); }
 
@@ -338,7 +423,7 @@ function createTab(url = 'pens://home') {
   const closeEl = document.createElement('span');
   closeEl.className = 'tab-close';
   closeEl.innerHTML = '&times;';
-  closeEl.onclick = (e) => { e.stopPropagation(); closeTab(tabId); };
+  closeEl.onclick = async (e) => { e.stopPropagation(); await closeTab(tabId); };
   
   tabEl.appendChild(titleEl);
   tabEl.appendChild(closeEl);
@@ -349,7 +434,7 @@ function createTab(url = 'pens://home') {
   viewContainer.className = 'view-container';
   viewContainer.id = `view-${tabId}`;
   
-  const tabObj = { id: tabId, el: tabEl, viewEl: viewContainer, titleEl, url, saveEnabled: true };
+  const tabObj = { id: tabId, el: tabEl, viewEl: viewContainer, titleEl, url, saveEnabled: false, currentStrokes: [], currentThumbnail: '' };
   
   if (url === 'pens://home') {
     viewContainer.innerHTML = `
@@ -940,14 +1025,28 @@ function setupWebview(tabObj, url) {
     tabObj.url = webview.getURL();
     if (activeTabId === tabObj.id) {
       addressBar.value = tabObj.url;
-      updateSaveToggleUI(tabObj);
     }
     
     recordHistory(tabObj.url, tabObj.titleEl.textContent);
     
     const urlId = tabObj.url.split('?')[0].split('#')[0];
     const data = await window.electronAPI.loadNotes(urlId);
-    if (data && webview.send) webview.send('load-strokes', data);
+    if (data && data.strokes && data.strokes.length > 0) {
+      // Previously kept notes exist for this website: reload them and keep recording ON
+      tabObj.saveEnabled = true;
+      tabObj.currentStrokes = data.strokes;
+      tabObj.currentThumbnail = data.thumbnail || '';
+      if (webview.send) webview.send('load-strokes', data);
+    } else {
+      // By default, recording of sketches on websites is OFF unless explicitly turned on
+      tabObj.saveEnabled = false;
+      tabObj.currentStrokes = [];
+      tabObj.currentThumbnail = '';
+    }
+    
+    if (activeTabId === tabObj.id) {
+      updateSaveToggleUI(tabObj);
+    }
     
     if (webview.send) {
       webview.send('set-mode', window.effectiveMode);
@@ -958,10 +1057,14 @@ function setupWebview(tabObj, url) {
 
   webview.addEventListener('ipc-message', (e) => {
     if (e.channel === 'save-strokes') {
-      if (!tabObj.saveEnabled) return;
       const { strokes, thumbnail } = e.args[0] || {};
       const payloadStrokes = strokes || e.args[0];
-      const data = { version: 1, source: { type: 'web', url: tabObj.url }, strokes: payloadStrokes, thumbnail };
+      tabObj.currentStrokes = payloadStrokes;
+      if (thumbnail) tabObj.currentThumbnail = thumbnail;
+      
+      if (!tabObj.saveEnabled) return;
+      
+      const data = { version: 1, source: { type: 'web', url: tabObj.url }, strokes: payloadStrokes, thumbnail: tabObj.currentThumbnail };
       const urlId = tabObj.url.split('?')[0].split('#')[0];
       window.electronAPI.saveNotes(urlId, data);
     } else if (e.channel === 'pointer-activity') {
@@ -996,11 +1099,14 @@ function activateTab(tabId) {
   broadcastStyle();
 }
 
-function closeTab(tabId) {
+async function closeTab(tabId) {
   const index = tabs.findIndex(t => t.id === tabId);
   if (index === -1) return;
   const tab = tabs[index];
   
+  const action = await promptUnsavedSketch(tab);
+  if (action === 'cancel') return;
+
   if (tab.url && !tab.url.startsWith('pens://')) closedTabs.push(tab.url);
   if (closedTabs.length > 20) closedTabs.shift();
 
@@ -1012,11 +1118,16 @@ function closeTab(tabId) {
 }
 
 // Navigation
-function navigateTo(input) {
+async function navigateTo(input) {
   const tab = getActiveTab();
   if (!tab) return;
   const url = resolveSearchOrUrl(input);
   if (!url) return;
+  
+  if (tab.url !== url && !tab.isPdf && !tab.url.startsWith('pens://')) {
+    const action = await promptUnsavedSketch(tab);
+    if (action === 'cancel') return;
+  }
   
   if (url.startsWith('http://') && !url.startsWith('http://localhost') && !url.startsWith('http://127.0.0.1')) {
     if (!confirm('Warning: This site uses unencrypted HTTP which is insecure. Do you still want to proceed?')) {

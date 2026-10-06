@@ -659,3 +659,149 @@ webview {
   background: #1557b0;
 }
 
+/* Unsaved Sketch Decision Modal */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  z-index: 10000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-card {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 92%;
+  max-width: 530px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  animation: modalScale 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalScale {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.modal-header {
+  padding: 22px 24px 14px 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.modal-badge-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #e8f0fe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.modal-title-wrap {
+  flex: 1;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: #202124;
+}
+
+.modal-subtitle {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: #5f6368;
+  line-height: 1.4;
+}
+
+.modal-body {
+  padding: 0 24px 16px 24px;
+}
+
+.modal-page-url {
+  background: #f8f9fa;
+  border: 1px solid #e8eaed;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #3c4043;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: monospace;
+}
+
+.modal-footer {
+  padding: 14px 24px;
+  background: #f8f9fa;
+  border-top: 1px solid #eeeeee;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.modal-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.modal-btn-primary {
+  background: #1a73e8;
+  color: #ffffff;
+}
+.modal-btn-primary:hover {
+  background: #1557b0;
+}
+
+.modal-btn-outline {
+  background: #ffffff;
+  color: #1a73e8;
+  border-color: #dadce0;
+}
+.modal-btn-outline:hover {
+  background: #f1f3f4;
+  border-color: #bdc1c6;
+}
+
+.modal-btn-danger {
+  background: #ffffff;
+  color: #d93025;
+  border-color: #dadce0;
+}
+.modal-btn-danger:hover {
+  background: #fce8e6;
+  border-color: #fad2cf;
+}
+
+.modal-btn-secondary {
+  background: transparent;
+  color: #5f6368;
+}
+.modal-btn-secondary:hover {
+  background: #e8eaed;
+}
+
+
