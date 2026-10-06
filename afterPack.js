@@ -3,7 +3,8 @@ const path = require('path');
 
 exports.default = async function(context) {
   const ext = process.platform === 'win32' ? '.exe' : '';
-  const electronExecutableFileName = context.packager.executableName + ext;
+  const baseName = context.packager.executableName || (context.packager.appInfo && context.packager.appInfo.productFilename) || 'pens';
+  const electronExecutableFileName = baseName + ext;
   const electronExecutablePath = path.join(context.appOutDir, electronExecutableFileName);
 
   console.log('Flipping Electron Fuses for:', electronExecutablePath);

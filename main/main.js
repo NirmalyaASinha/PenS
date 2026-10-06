@@ -105,6 +105,45 @@ function secureHandle(channel, schema, handler) {
   });
 }
 
+function handlePensRequest(request) {
+  const url = new URL(request.url);
+  if (url.hostname !== 'app') return new Response('Forbidden', { status: 403 });
+  
+  // Serve only from allowlisted folder (this project directory)
+  const normalizedPath = path.normalize(url.pathname);
+  if (normalizedPath.includes('..') || normalizedPath.startsWith('\\\\')) {
+    return new Response('Forbidden', { status: 403 });
+  }
+  
+  const targetPath = path.join(__dirname, '..', normalizedPath);
+  if (!targetPath.startsWith(path.join(__dirname, '..'))) {
+    return new Response('Forbidden', { status: 403 });
+  }
+  
+  return net.fetch(require('url').pathToFileURL(targetPath).toString());
+}
+
+function setupPensProtocol(targetSession) {
+  if (targetSession && targetSession.protocol && !targetSession.protocol.isProtocolHandled('pens')) {
+    targetSession.protocol.handle('pens', handlePensRequest);
+  }
+
+  if (targetSession && targetSession.webRequest) {
+    targetSession.webRequest.onHeadersReceived((details, callback) => {
+      if (details.url.startsWith('pens://')) {
+        callback({
+          responseHeaders: {
+            ...details.responseHeaders,
+            'Content-Security-Policy': ["default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'"]
+          }
+        });
+      } else {
+        callback({ responseHeaders: details.responseHeaders });
+      }
+    });
+  }
+}
+
 function createWindow(profileId = 'default') {
   const profile = profileManager.getProfile(profileId);
   profileManager.lastUsed = profileId;
@@ -113,6 +152,7 @@ function createWindow(profileId = 'default') {
 
   const partition = profileId === 'guest' ? 'guest' : `persist:${profileId}`;
   const profileSession = session.fromPartition(partition);
+  setupPensProtocol(profileSession);
 
   // Stage 4: Privacy & Permissions
   const sitePermissions = new Map(); // Store as `${profileId}:${origin}:${permission}`
@@ -189,16 +229,11 @@ function createWindow(profileId = 'default') {
   });
 
   windowProfiles.set(mainWindow.id, profile.id);
-  mainWindow.loadURL('pens://app/renderer/index.html').catch(err => console.error("[MAIN] loadURL failed:", err)); 
-  mainWindow.webContents.openDevTools();
+  mainWindow.loadURL('pens://app/renderer/index.html');
 
   mainWindow.webContents.on('did-finish-load', () => {
     mainWindow.webContents.send('profile-info', profile);
     mainWindow.webContents.send('settings-loaded', settings);
-  });
-  
-  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
-    console.log(`[RENDERER] ${message} (${sourceId}:${line})`);
   });
 
   mainWindow.on('closed', () => {
@@ -334,42 +369,10 @@ if (!gotTheLock) {
 
 
 app.whenReady().then(() => {
-  console.log("[MAIN] App is ready!");
-  // Task 1.4: Secure pens:// protocol
-  protocol.handle('pens', (request) => {
-    const url = new URL(request.url);
-    if (url.hostname !== 'app') return new Response('Forbidden', { status: 403 });
-    
-    // Serve only from allowlisted folder (this project directory)
-    const normalizedPath = path.normalize(url.pathname);
-    if (normalizedPath.includes('..') || normalizedPath.startsWith('\\\\')) {
-      return new Response('Forbidden', { status: 403 });
-    }
-    
-    const targetPath = path.join(__dirname, '..', normalizedPath);
-    if (!targetPath.startsWith(path.join(__dirname, '..'))) {
-      console.log("[PROTOCOL] Forbidden target path:", targetPath);
-      return new Response('Forbidden', { status: 403 });
-    }
-    
-    console.log("[PROTOCOL] Loading:", targetPath);
-    return net.fetch(require('url').pathToFileURL(targetPath).toString());
-  });
-
-  // Task 1.5: Strict CSP for internal pages
-  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    if (details.url.startsWith('pens://')) {
-      // Allow 'unsafe-inline' for styles because renderer.js relies on style injection
-      callback({
-        responseHeaders: {
-          ...details.responseHeaders,
-          'Content-Security-Policy': ["default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'"]
-        }
-      });
-    } else {
-      callback({ responseHeaders: details.responseHeaders });
-    }
-  });
+  setupPensProtocol(session.defaultSession);
+  if (!protocol.isProtocolHandled('pens')) {
+    protocol.handle('pens', handlePensRequest);
+  }
 
   createWindow(profileManager.lastUsed);
   app.on('activate', () => {
