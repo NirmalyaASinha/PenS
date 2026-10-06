@@ -150,8 +150,8 @@ window.addEventListener('keydown', (e) => {
       case 'e': toggleTool('eraser'); break;
       case 'h': toggleTool('highlighter'); break;
       case 'b': toggleTool('pen'); break;
-      case ']': currentSize = Math.min(40, currentSize + 0.5); fpSize.value = currentSize; broadcastStyle(); break;
-      case '[': currentSize = Math.max(1, currentSize - 0.5); fpSize.value = currentSize; broadcastStyle(); break;
+      case ']': currentSize = Math.min(40, currentSize + 0.5); if (typeof updateSizeDisplay === 'function') updateSizeDisplay(currentSize); broadcastStyle(); break;
+      case '[': currentSize = Math.max(1, currentSize - 0.5); if (typeof updateSizeDisplay === 'function') updateSizeDisplay(currentSize); broadcastStyle(); break;
     }
   }
 });
@@ -172,13 +172,13 @@ function toggleTool(tool) {
     // Auto-switch to a thick yellow
     currentColor = '#fbbc04'; 
     currentSize = 20;
-    fpSize.value = currentSize;
+    if (typeof updateSizeDisplay === 'function') updateSizeDisplay(currentSize);
     updateSwatches();
   } else {
     currentTool = 'pen';
     btnPen.classList.add('active');
     if (currentSize === 20) currentSize = 2.5; // switch back size
-    fpSize.value = currentSize;
+    if (typeof updateSizeDisplay === 'function') updateSizeDisplay(currentSize);
   }
   
   const tab = getActiveTab();
@@ -968,32 +968,134 @@ btnReload.addEventListener('click', () => { const tab = getActiveTab(); if (tab 
 newTabBtn.addEventListener('click', () => createTab());
 
 
-// --- Floating Palette Logic ---
+// --- Floating Palette & Side Dock Logic ---
 let currentColor = '#1a73e8';
 let currentSize = 2.5;
 
+const paletteDock = document.getElementById('palette-dock');
+const fpToggleBtn = document.getElementById('fp-toggle-btn');
 const fp = document.getElementById('floating-palette');
-const fpHeader = document.getElementById('fp-header');
+const fpBtnPin = document.getElementById('fp-btn-pin');
+const fpBtnMinimize = document.getElementById('fp-btn-minimize');
+const fpColorBadge = document.getElementById('fp-color-badge');
+const fpSizeVal = document.getElementById('fp-size-val');
 const swatches = document.querySelectorAll('.color-swatch');
 const fpSize = document.getElementById('fp-size');
 
-let isDragging = false, dragOffX = 0, dragOffY = 0;
-fpHeader.addEventListener('pointerdown', (e) => {
-  isDragging = true;
-  dragOffX = e.clientX - fp.offsetLeft;
-  dragOffY = e.clientY - fp.offsetTop;
-  fpHeader.setPointerCapture(e.pointerId);
+let isPalettePinned = false;
+let isPaletteExpanded = false;
+let paletteHoverTimer = null;
+
+function expandPalette() {
+  isPaletteExpanded = true;
+  if (paletteDock) {
+    paletteDock.classList.remove('minimized');
+    paletteDock.classList.add('expanded');
+  }
+}
+
+function minimizePalette() {
+  if (isPalettePinned) return;
+  isPaletteExpanded = false;
+  if (paletteDock) {
+    paletteDock.classList.remove('expanded');
+    paletteDock.classList.add('minimized');
+  }
+}
+
+function forceMinimize() {
+  isPalettePinned = false;
+  if (paletteDock) {
+    paletteDock.classList.remove('pinned');
+    paletteDock.classList.add('unpinned');
+    paletteDock.classList.remove('expanded');
+    paletteDock.classList.add('minimized');
+  }
+  if (fpBtnPin) {
+    fpBtnPin.classList.remove('active');
+    fpBtnPin.title = 'Pin palette open';
+  }
+  isPaletteExpanded = false;
+}
+
+function togglePin() {
+  isPalettePinned = !isPalettePinned;
+  if (isPalettePinned) {
+    if (paletteDock) {
+      paletteDock.classList.add('pinned');
+      paletteDock.classList.remove('unpinned');
+    }
+    if (fpBtnPin) {
+      fpBtnPin.classList.add('active');
+      fpBtnPin.title = 'Unpin palette (hover mode)';
+    }
+    expandPalette();
+  } else {
+    if (paletteDock) {
+      paletteDock.classList.remove('pinned');
+      paletteDock.classList.add('unpinned');
+    }
+    if (fpBtnPin) {
+      fpBtnPin.classList.remove('active');
+      fpBtnPin.title = 'Pin palette open';
+    }
+  }
+}
+
+if (paletteDock) {
+  // When unpinned, only hover-expand from the side
+  paletteDock.addEventListener('mouseenter', () => {
+    if (paletteHoverTimer) {
+      clearTimeout(paletteHoverTimer);
+      paletteHoverTimer = null;
+    }
+    if (!isPalettePinned) {
+      expandPalette();
+    }
+  });
+
+  paletteDock.addEventListener('mouseleave', () => {
+    if (!isPalettePinned) {
+      if (paletteHoverTimer) clearTimeout(paletteHoverTimer);
+      paletteHoverTimer = setTimeout(() => {
+        minimizePalette();
+      }, 350);
+    }
+  });
+}
+
+if (fpToggleBtn) {
+  fpToggleBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    expandPalette();
+  });
+}
+
+if (fpBtnMinimize) {
+  fpBtnMinimize.addEventListener('click', (e) => {
+    e.stopPropagation();
+    forceMinimize();
+  });
+}
+
+if (fpBtnPin) {
+  fpBtnPin.addEventListener('click', (e) => {
+    e.stopPropagation();
+    togglePin();
+  });
+}
+
+// Clicking outside collapses the palette when unpinned
+window.addEventListener('click', (e) => {
+  if (!isPalettePinned && isPaletteExpanded && paletteDock && !paletteDock.contains(e.target)) {
+    minimizePalette();
+  }
 });
-fpHeader.addEventListener('pointermove', (e) => {
-  if (!isDragging) return;
-  fp.style.left = (e.clientX - dragOffX) + 'px';
-  fp.style.top = (e.clientY - dragOffY) + 'px';
-  fp.style.right = 'auto'; 
-});
-fpHeader.addEventListener('pointerup', (e) => {
-  isDragging = false;
-  fpHeader.releasePointerCapture(e.pointerId);
-});
+
+function updateSizeDisplay(size) {
+  if (fpSizeVal) fpSizeVal.textContent = size + 'px';
+  if (fpSize) fpSize.value = size;
+}
 
 function broadcastStyle() {
   const tab = getActiveTab();
@@ -1018,6 +1120,9 @@ function updateSwatches() {
     if (s.dataset.color === currentColor) s.classList.add('active');
     else s.classList.remove('active');
   });
+  if (fpColorBadge) {
+    fpColorBadge.style.backgroundColor = currentColor;
+  }
 }
 
 swatches.forEach(swatch => {
@@ -1028,10 +1133,17 @@ swatches.forEach(swatch => {
   });
 });
 
-fpSize.addEventListener('input', (e) => {
-  currentSize = parseFloat(e.target.value);
-  broadcastStyle();
-});
+if (fpSize) {
+  fpSize.addEventListener('input', (e) => {
+    currentSize = parseFloat(e.target.value);
+    updateSizeDisplay(currentSize);
+    broadcastStyle();
+  });
+}
+
+// Initial palette state
+updateSwatches();
+updateSizeDisplay(currentSize);
 
 // Initialize App
 setAppMode('auto');

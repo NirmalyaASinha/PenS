@@ -88,44 +88,77 @@
       <!-- The Home Screen is injected dynamically or managed here -->
     </main>
     
-    <!-- Modern Floating Tool Palette -->
-    <div id="floating-palette">
-      <div id="fp-header">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M10 9h4V6h-4v3zm0 4h4v-3h-4v3zm0 4h4v-3h-4v3z"/></svg>
-      </div>
-      <div class="fp-tools">
-        <button id="btn-undo" class="tool-btn" title="Undo (Ctrl+Z)">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>
-        </button>
-        <button id="btn-redo" class="tool-btn" title="Redo (Ctrl+Y)">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"></path></svg>
-        </button>
-        <div class="divider"></div>
-        <button id="btn-pen" class="tool-btn active" title="Pen">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-        </button>
-        <button id="btn-highlighter" class="tool-btn" title="Highlighter">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l-4 4a2.828 2.828 0 0 0 4 4l4-4"></path><path d="M12 9l8-8 3 3-8 8"></path><path d="M14 15l4 4-18 0 0-4"></path></svg>
-        </button>
-        <button id="btn-eraser" class="tool-btn" title="Eraser (E)">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16.51A2 2 0 0 1 19.51 18H5.49A2 2 0 0 1 4 16.51V7.49A2 2 0 0 1 5.49 6h14.02a2 2 0 0 1 2 1.49v9.02z"></path><line x1="9" y1="6" x2="9" y2="18"></line></svg>
-        </button>
-      </div>
-      <div class="fp-divider"></div>
-      <div class="fp-section">
-        <span class="fp-label">Size</span>
-        <input type="range" id="fp-size" min="1" max="40" value="2.5" step="0.5">
-      </div>
-      <div class="fp-divider"></div>
-      <div class="fp-section">
-        <span class="fp-label">Colors</span>
-        <div id="fp-colors">
-          <div class="color-swatch active" style="background-color: #1a73e8;" data-color="#1a73e8"></div>
-          <div class="color-swatch" style="background-color: #ea4335;" data-color="#ea4335"></div>
-          <div class="color-swatch" style="background-color: #fbbc04;" data-color="#fbbc04"></div>
-          <div class="color-swatch" style="background-color: #34a853;" data-color="#34a853"></div>
-          <div class="color-swatch" style="background-color: #202124;" data-color="#202124"></div>
-          <div class="color-swatch" style="background-color: #ffffff;" data-color="#ffffff"></div>
+    <!-- Docked Pen Palette (Right Side) -->
+    <div id="palette-dock" class="palette-dock minimized unpinned">
+      <!-- Minimized Single Icon Trigger -->
+      <button id="fp-toggle-btn" class="fp-dock-trigger" title="Pen Tools (Click to open, hover to preview)" aria-label="Open Pen Tools">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+        </svg>
+        <span id="fp-color-badge" class="fp-color-badge" style="background-color: #1a73e8;"></span>
+      </button>
+
+      <!-- Floating Tool Palette Popup -->
+      <div id="floating-palette" class="palette-popup">
+        <div id="fp-header">
+          <div class="fp-header-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+            </svg>
+            <span>Ink Tools</span>
+          </div>
+          <div class="fp-header-actions">
+            <button id="fp-btn-pin" class="fp-icon-btn" title="Pin palette open" aria-label="Pin palette">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="17" x2="12" y2="22"></line>
+                <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.89A4 4 0 0 1 14 9V5a1 1 0 0 1 1-1h1V2H8v2h1a1 1 0 0 1 1 1v4a4 4 0 0 1-2.11 3.56l-1.78.89A2 2 0 0 0 5 15.24V17z"></path>
+              </svg>
+            </button>
+            <button id="fp-btn-minimize" class="fp-icon-btn" title="Minimize to icon" aria-label="Minimize palette">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="fp-tools">
+          <button id="btn-undo" class="tool-btn" title="Undo (Ctrl+Z)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>
+          </button>
+          <button id="btn-redo" class="tool-btn" title="Redo (Ctrl+Y)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"></path></svg>
+          </button>
+          <div class="divider"></div>
+          <button id="btn-pen" class="tool-btn active" title="Pen (B)">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+          </button>
+          <button id="btn-highlighter" class="tool-btn" title="Highlighter (H)">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l-4 4a2.828 2.828 0 0 0 4 4l4-4"></path><path d="M12 9l8-8 3 3-8 8"></path><path d="M14 15l4 4-18 0 0-4"></path></svg>
+          </button>
+          <button id="btn-eraser" class="tool-btn" title="Eraser (E)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16.51A2 2 0 0 1 19.51 18H5.49A2 2 0 0 1 4 16.51V7.49A2 2 0 0 1 5.49 6h14.02a2 2 0 0 1 2 1.49v9.02z"></path><line x1="9" y1="6" x2="9" y2="18"></line></svg>
+          </button>
+        </div>
+        <div class="fp-divider"></div>
+        <div class="fp-section">
+          <div class="fp-section-row">
+            <span class="fp-label">Stroke Size</span>
+            <span id="fp-size-val" class="fp-val-badge">2.5px</span>
+          </div>
+          <input type="range" id="fp-size" min="1" max="40" value="2.5" step="0.5">
+        </div>
+        <div class="fp-divider"></div>
+        <div class="fp-section">
+          <span class="fp-label">Colors</span>
+          <div id="fp-colors">
+            <div class="color-swatch active" style="background-color: #1a73e8;" data-color="#1a73e8"></div>
+            <div class="color-swatch" style="background-color: #ea4335;" data-color="#ea4335"></div>
+            <div class="color-swatch" style="background-color: #fbbc04;" data-color="#fbbc04"></div>
+            <div class="color-swatch" style="background-color: #34a853;" data-color="#34a853"></div>
+            <div class="color-swatch" style="background-color: #202124;" data-color="#202124"></div>
+            <div class="color-swatch" style="background-color: #ffffff;" data-color="#ffffff"></div>
+          </div>
         </div>
       </div>
     </div>
