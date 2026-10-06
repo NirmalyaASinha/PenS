@@ -1,0 +1,52 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write # Needed to create GitHub Releases
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.1.1
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4.0.2
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install Dependencies
+        run: npm ci
+        
+      - name: Run Security Audit
+        run: npm audit --omit=dev
+        
+      - name: Build and Package
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Keep certificate as a base64 encoded secret in GitHub
+          CSC_LINK: ${{ secrets.WIN_CERTIFICATE_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CERTIFICATE_PASSWORD }}
+        run: npm run dist -- -p always
+        
+      - name: Generate Checksums
+        run: |
+          cd dist
+          Get-ChildItem -Filter *.exe | ForEach-Object {
+            (Get-FileHash $_.Name -Algorithm SHA256).Hash + "  " + $_.Name >> checksums.txt
+          }
+          
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v2.0.4
+        with:
+          files: |
+            dist/*.exe
+            dist/checksums.txt
+

