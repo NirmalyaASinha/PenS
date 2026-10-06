@@ -633,3 +633,29 @@ webview {
 .note-card:hover {
   background: rgba(234, 67, 53, 0.1);
 }
+
+/* Home Page Search Capsule */
+.home-search-capsule {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+.home-search-capsule:focus-within {
+  border-color: #1a73e8 !important;
+  box-shadow: 0 4px 14px rgba(26, 115, 232, 0.18) !important;
+}
+.home-search-btn {
+  background: #1a73e8;
+  border: none;
+  color: #ffffff;
+  border-radius: 16px;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-left: 8px;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease;
+}
+.home-search-btn:hover {
+  background: #1557b0;
+}
+

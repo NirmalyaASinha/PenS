@@ -288,7 +288,44 @@ function createPdfTab(filePath) {
   activateTab(tabId);
 }
 
+// Resolve URL or Search Query (Default to Google)
+function resolveSearchOrUrl(input) {
+  if (!input) return '';
+  const trimmed = input.trim();
+  if (!trimmed) return '';
+
+  // Internal and standard protocols
+  if (/^(pens|about):/i.test(trimmed)) return trimmed;
+  if (/^file:\/\//i.test(trimmed)) return trimmed;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+
+  // Localhost / Loopback
+  if (/^localhost(:\d+)?(\/.*)?$/i.test(trimmed) || /^127\.0\.0\.1(:\d+)?(\/.*)?$/.test(trimmed)) {
+    return 'http://' + trimmed;
+  }
+
+  // Spaces indicate a search query -> Default to Google
+  if (/\s/.test(trimmed)) {
+    return `https://www.google.com/search?q=${encodeURIComponent(trimmed)}`;
+  }
+
+  // Domain structure test (e.g. google.com, sub.domain.org/path)
+  const domainPattern = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+(:[0-9]+)?(\/.*)?$/;
+  if (domainPattern.test(trimmed)) {
+    const hasValidTld = /\.[a-z]{2,24}(:[0-9]+)?(\/.*)?$/i.test(trimmed);
+    if (hasValidTld || trimmed.includes('/') || trimmed.includes(':')) {
+      return 'https://' + trimmed;
+    }
+  }
+
+  // Otherwise, default to Google search
+  return `https://www.google.com/search?q=${encodeURIComponent(trimmed)}`;
+}
+
 function createTab(url = 'pens://home') {
+  if (url && url !== 'pens://home') {
+    url = resolveSearchOrUrl(url);
+  }
   const tabId = `tab-${tabCounter++}`;
   const tabEl = document.createElement('div');
   tabEl.className = 'tab';
@@ -318,12 +355,22 @@ function createTab(url = 'pens://home') {
     viewContainer.innerHTML = `
       <div class="home-container" style="display: flex; height: 100%; font-family: 'Segoe UI', sans-serif; background: #fff;">
         <div class="home-left" style="flex: 1; padding: 40px; border-right: 1px solid #eee; display: flex; flex-direction: column;">
-          <div style="background: #f8f9fa; border-radius: 16px; padding: 30px; text-align: center; cursor: pointer; transition: transform 0.2s;" id="home-browse-card-${tabId}">
-            <h1 style="margin: 0 0 20px 0; font-size: 32px; color: #1a73e8;">Browse the Web</h1>
-            <div style="background: white; border: 1px solid #ddd; border-radius: 24px; padding: 12px 20px; display: flex; align-items: center; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">
-              <span style="color: #666; margin-right: 10px;">🔍</span>
-              <span style="color: #999;">Search or enter web address...</span>
-            </div>
+          <div style="background: #f8f9fa; border-radius: 16px; padding: 30px; text-align: center; transition: transform 0.2s;" id="home-browse-card-${tabId}">
+            <h1 style="margin: 0 0 20px 0; font-size: 32px; color: #1a73e8; font-weight: 600;">Browse the Web</h1>
+            <form id="home-search-form-${tabId}" style="margin: 0; display: flex; justify-content: center;" onsubmit="event.preventDefault();">
+              <div style="background: white; border: 1.5px solid #dfe1e5; border-radius: 24px; padding: 10px 18px; display: flex; align-items: center; width: 100%; max-width: 480px; box-shadow: 0 2px 6px rgba(0,0,0,0.06);" class="home-search-capsule">
+                <span style="color: #5f6368; margin-right: 12px; font-size: 16px;">🔍</span>
+                <input 
+                  type="text" 
+                  id="home-search-input-${tabId}" 
+                  placeholder="Search Google or enter web address..." 
+                  style="flex: 1; border: none; outline: none; font-size: 15px; color: #202124; background: transparent; font-family: inherit; width: 100%; min-width: 0;" 
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+                <button type="submit" class="home-search-btn">Search</button>
+              </div>
+            </form>
           </div>
           
           <h3 style="margin-top: 40px; color: #333;">Bookmarks</h3>
@@ -401,10 +448,33 @@ function createTab(url = 'pens://home') {
         }
       }
       */
-      document.getElementById(`home-browse-card-${tabId}`).addEventListener('click', () => {
-        addressBar.focus();
-        addressBar.select();
-      });
+      const homeSearchForm = document.getElementById(`home-search-form-${tabId}`);
+      const homeSearchInput = document.getElementById(`home-search-input-${tabId}`);
+      const homeBrowseCard = document.getElementById(`home-browse-card-${tabId}`);
+
+      if (homeSearchForm && homeSearchInput) {
+        homeSearchForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const query = homeSearchInput.value.trim();
+          if (query) {
+            navigateTo(query);
+          }
+        });
+
+        if (homeBrowseCard) {
+          homeBrowseCard.addEventListener('click', (e) => {
+            if (e.target !== homeSearchInput && !e.target.closest('button')) {
+              homeSearchInput.focus();
+            }
+          });
+        }
+
+        setTimeout(() => {
+          if (activeTabId === tabId) {
+            homeSearchInput.focus();
+          }
+        }, 100);
+      }
       
       document.getElementById(`home-see-all-${tabId}`).addEventListener('click', (e) => {
         e.preventDefault();
@@ -942,10 +1012,11 @@ function closeTab(tabId) {
 }
 
 // Navigation
-function navigateTo(url) {
+function navigateTo(input) {
   const tab = getActiveTab();
   if (!tab) return;
-  if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('file://') && !url.startsWith('pens://')) url = 'https://' + url;
+  const url = resolveSearchOrUrl(input);
+  if (!url) return;
   
   if (url.startsWith('http://') && !url.startsWith('http://localhost') && !url.startsWith('http://127.0.0.1')) {
     if (!confirm('Warning: This site uses unencrypted HTTP which is insecure. Do you still want to proceed?')) {
@@ -953,12 +1024,18 @@ function navigateTo(url) {
     }
   }
   
-  if (tab.url === 'pens://home' && url !== 'pens://home') {
+  addressBar.value = url;
+  
+  if (tab.url.startsWith('pens://') || tab.pdfViewer) {
+    tab.pdfViewer = null;
     tab.url = url;
     setupWebview(tab, url);
   } else if (tab.webview) {
     tab.url = url;
     tab.webview.setAttribute('src', url);
+  } else {
+    tab.url = url;
+    setupWebview(tab, url);
   }
 }
 
@@ -966,6 +1043,8 @@ btnBack.addEventListener('click', () => { const tab = getActiveTab(); if (tab &&
 btnForward.addEventListener('click', () => { const tab = getActiveTab(); if (tab && tab.webview && tab.webview.canGoForward()) tab.webview.goForward(); });
 btnReload.addEventListener('click', () => { const tab = getActiveTab(); if (tab && tab.webview) tab.webview.reload(); });
 newTabBtn.addEventListener('click', () => createTab());
+addressBar.addEventListener('keydown', (e) => { if (e.key === 'Enter') navigateTo(addressBar.value); });
+
 
 
 // --- Floating Palette & Side Dock Logic ---
