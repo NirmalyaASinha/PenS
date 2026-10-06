@@ -28,7 +28,16 @@ class ProfileManager {
 
   migrateLegacyData() {
     this.profiles = {
-      'default': { id: 'default', name: 'Default', color: '#1a73e8', avatar: '👤', created: Date.now() }
+      'default': {
+        id: 'default',
+        name: 'Default',
+        displayName: 'Default',
+        fullName: '',
+        identityConfigured: false,
+        color: '#1a73e8',
+        avatar: '👤',
+        created: Date.now()
+      }
     };
     this.lastUsed = 'default';
     
@@ -56,22 +65,78 @@ class ProfileManager {
   }
 
   getProfiles() {
-    return Object.values(this.profiles);
+    return Object.keys(this.profiles).map((id) => this.getProfile(id));
   }
 
   getProfile(id) {
-    return this.profiles[id] || this.profiles['default'];
+    if (id === 'guest') {
+      return { id: 'guest', name: 'Guest', color: '#5f6368', avatar: '🕵️', created: 0 };
+    }
+    const profile = this.profiles[id] || this.profiles['default'];
+    return {
+      ...profile,
+      displayName: profile.displayName || profile.name || 'Default',
+      fullName: profile.fullName || '',
+      identityConfigured: profile.identityConfigured === true,
+      personalDetails: profile.personalDetails || {
+        name: '',
+        email: '',
+        phone: '',
+        address: '',
+        origins: []
+      }
+    };
   }
 
   createProfile(name, color = '#1a73e8', avatar = '👤') {
     const id = 'profile_' + Date.now();
-    this.profiles[id] = { id, name, color, avatar, created: Date.now() };
+    this.profiles[id] = {
+      id,
+      name,
+      displayName: name,
+      fullName: '',
+      identityConfigured: false,
+      color,
+      avatar,
+      created: Date.now()
+    };
     fs.mkdirSync(path.join(this.profilesDir, id, 'notes'), { recursive: true });
     this.save();
     return this.profiles[id];
   }
 
+  updateProfile(id, fields) {
+    if (id === 'guest' || !this.profiles[id]) throw new Error('Profile cannot be updated');
+    const current = this.profiles[id];
+    const updated = {
+      ...current,
+      displayName: fields.displayName,
+      fullName: fields.fullName,
+      identityConfigured: true,
+      color: fields.color,
+      avatar: fields.avatar
+    };
+    this.profiles[id] = updated;
+    this.save();
+    return this.getProfile(id);
+  }
+
+  updatePersonalDetails(id, details) {
+    if (id === 'guest' || !this.profiles[id]) throw new Error('Profile cannot be updated');
+    this.profiles[id].personalDetails = {
+      ...details,
+      origins: Array.isArray(details.origins) ? details.origins : []
+    };
+    this.save();
+    return this.getProfile(id).personalDetails;
+  }
+
   getNotesPath(profileId) {
+    if (profileId === 'guest') {
+      const gPath = path.join(this.profilesDir, 'guest', 'notes');
+      if (!fs.existsSync(gPath)) fs.mkdirSync(gPath, { recursive: true });
+      return gPath;
+    }
     const p = this.profiles[profileId] ? profileId : 'default';
     const pPath = path.join(this.profilesDir, p, 'notes');
     if (!fs.existsSync(pPath)) fs.mkdirSync(pPath, { recursive: true });
@@ -80,4 +145,3 @@ class ProfileManager {
 }
 
 module.exports = new ProfileManager();
-

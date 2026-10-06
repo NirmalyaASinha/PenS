@@ -143,6 +143,7 @@ class InkEngine {
 
   undo() { if (this.strokes.length > 0) { this.undoneStrokes.push(this.strokes.pop()); this.render(); this.autoSave(); } }
   redo() { if (this.undoneStrokes.length > 0) { this.strokes.push(this.undoneStrokes.pop()); this.render(); this.autoSave(); } }
+  clear() { if (this.strokes.length > 0) { this.undoneStrokes = [...this.strokes]; this.strokes = []; this.render(); this.autoSave(); } }
 
   drawStroke(ctx, stroke) {
     if (stroke.points.length < 2) return;

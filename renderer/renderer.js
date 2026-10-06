@@ -9,6 +9,8 @@ const btnZoomIn = document.getElementById('btn-zoom-in');
 const btnZoomOut = document.getElementById('btn-zoom-out');
 const btnMode = document.getElementById('btn-mode');
 const btnOpenPdf = document.getElementById('btn-open-pdf');
+const btnPdfText = document.getElementById('btn-pdf-text');
+const btnPdfSave = document.getElementById('btn-pdf-save');
 const btnUndo = document.getElementById('btn-undo');
 const btnRedo = document.getElementById('btn-redo');
 const btnPen = document.getElementById('btn-pen');
@@ -20,6 +22,262 @@ let tabs = [];
 let activeTabId = null;
 let tabCounter = 0;
 let webviewPreloadPath = '';
+
+function formatDate(timestamp) {
+  if (!timestamp) return 'No date';
+  return new Intl.DateTimeFormat(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  }).format(new Date(timestamp));
+}
+
+function formatCount(value, singular, plural = `${singular}s`) {
+  const count = Number(value) || 0;
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function readableTitle(note) {
+  const raw = String(note?.title || note?.source || note?.id || 'Untitled');
+  if (note?.type === 'pdf' || /^file:/i.test(raw) || /^[a-zA-Z]:[\\/]/.test(raw)) {
+    const filename = raw.replace(/^file:\/\/\//i, '').split(/[\\/]/).pop() || 'PDF document';
+    return decodeURIComponent(filename).replace(/\.pdf$/i, '');
+  }
+  try {
+    const url = new URL(raw);
+    return url.hostname.replace(/^www\./i, '') || 'Web note';
+  } catch {
+    return raw.length > 72 ? `${raw.slice(0, 69)}...` : raw;
+  }
+}
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme || 'system';
+}
+
+function profileDisplayName(profile) {
+  return String(profile?.displayName || profile?.name || 'Default').trim() || 'Default';
+}
+
+function readableTextColor(hex) {
+  const value = String(hex || '#1a73e8').slice(1);
+  const red = parseInt(value.slice(0, 2), 16);
+  const green = parseInt(value.slice(2, 4), 16);
+  const blue = parseInt(value.slice(4, 6), 16);
+  return (red * 299 + green * 587 + blue * 114) >= 150000 ? '#202124' : '#ffffff';
+}
+
+function updateProfileUI(profile) {
+  currentProfile = profile;
+  const displayName = profileDisplayName(profile);
+  if (btnProfileMenu) {
+    btnProfileMenu.replaceChildren();
+    if (String(profile.avatar || '').startsWith('data:image/')) {
+      const image = document.createElement('img');
+      image.src = profile.avatar;
+      image.alt = `${displayName} avatar`;
+      image.width = 28;
+      image.height = 28;
+      image.style.cssText = 'width: 28px; height: 28px; border-radius: 50%; object-fit: cover;';
+      btnProfileMenu.appendChild(image);
+    } else {
+      btnProfileMenu.textContent = profile.avatar || displayName.charAt(0).toUpperCase();
+    }
+    btnProfileMenu.title = displayName;
+    btnProfileMenu.style.borderColor = profile.color;
+  }
+  document.documentElement.style.setProperty('--accent-color', profile.color);
+  const titlebar = document.getElementById('titlebar');
+  if (titlebar) {
+    titlebar.style.backgroundColor = profile.color;
+    titlebar.style.color = readableTextColor(profile.color);
+  }
+  document.querySelectorAll('[id^="home-greeting-"]').forEach((element) => {
+    element.textContent = `Welcome back, ${displayName}`;
+  });
+  if (profile.identityConfigured === false && !sessionStorage.getItem('pens-identity-prompted')) {
+    sessionStorage.setItem('pens-identity-prompted', 'true');
+    setTimeout(() => createTab('pens://settings'), 0);
+  }
+}
+
+async function resizeAvatarFile(file) {
+  if (!file || !/^image\/(?:png|jpeg|webp|gif)$/i.test(file.type)) {
+    throw new Error('Choose a PNG, JPEG, WebP, or GIF image.');
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    throw new Error('Avatar images must be 5 MB or smaller.');
+  }
+  const source = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    image.src = source;
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = () => reject(new Error('The avatar image could not be read.'));
+    });
+    const size = Math.min(256, Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const context = canvas.getContext('2d');
+    context.clearRect(0, 0, size, size);
+    const scale = Math.min(size / image.naturalWidth, size / image.naturalHeight);
+    const width = image.naturalWidth * scale;
+    const height = image.naturalHeight * scale;
+    context.drawImage(image, (size - width) / 2, (size - height) / 2, width, height);
+    const encoded = canvas.toDataURL('image/webp', 0.82);
+    if (encoded.length > 180000) throw new Error('That avatar is too large after processing.');
+    return encoded;
+  } finally {
+    URL.revokeObjectURL(source);
+  }
+}
+
+async function addIdentitySettings(tabId, page) {
+  if (!page || !window.electronAPI?.getCurrentProfile || !window.electronAPI?.updateProfile) return;
+  const profile = await window.electronAPI.getCurrentProfile();
+  const section = document.createElement('section');
+  section.className = 'identity-settings';
+  const heading = document.createElement('h2');
+  heading.textContent = 'You and PenS';
+  const help = document.createElement('p');
+  help.textContent = 'Choose how PenS shows your profile. These details stay with this profile.';
+  help.className = 'settings-help';
+  section.append(heading, help);
+
+  const form = document.createElement('div');
+  form.className = 'identity-form';
+  const displayName = document.createElement('input');
+  displayName.type = 'text';
+  displayName.maxLength = 50;
+  displayName.placeholder = 'Display name';
+  displayName.value = profileDisplayName(profile);
+  displayName.setAttribute('aria-label', 'Display name');
+  const fullName = document.createElement('input');
+  fullName.type = 'text';
+  fullName.maxLength = 120;
+  fullName.placeholder = 'Full name (optional)';
+  fullName.value = profile.fullName || '';
+  fullName.setAttribute('aria-label', 'Full name');
+
+  const detailsHeading = document.createElement('h3');
+  detailsHeading.textContent = 'Optional autofill details';
+  const email = document.createElement('input');
+  email.type = 'email';
+  email.maxLength = 254;
+  email.placeholder = 'Email';
+  email.value = profile.personalDetails?.email || '';
+  const phone = document.createElement('input');
+  phone.type = 'tel';
+  phone.maxLength = 40;
+  phone.placeholder = 'Phone';
+  phone.value = profile.personalDetails?.phone || '';
+  const address = document.createElement('textarea');
+  address.maxLength = 300;
+  address.placeholder = 'Address';
+  address.value = profile.personalDetails?.address || '';
+  const origins = document.createElement('input');
+  origins.type = 'text';
+  origins.placeholder = 'Allowed origins, comma-separated (example: https://example.com)';
+  origins.value = (profile.personalDetails?.origins || []).join(', ');
+  const detailsHelp = document.createElement('small');
+  detailsHelp.className = 'settings-help';
+  detailsHelp.textContent = 'PenS only offers these details after you focus a field, and only on the exact origins listed here.';
+
+  const avatarLabel = document.createElement('label');
+  avatarLabel.textContent = 'Avatar';
+  const avatarText = document.createElement('input');
+  avatarText.type = 'text';
+  avatarText.maxLength = 8;
+  avatarText.placeholder = 'Initials or emoji';
+  avatarText.value = String(profile.avatar || '').startsWith('data:image/') ? '' : (profile.avatar || '');
+  avatarText.setAttribute('aria-label', 'Avatar initials or emoji');
+  const avatarFile = document.createElement('input');
+  avatarFile.type = 'file';
+  avatarFile.accept = 'image/png,image/jpeg,image/webp,image/gif';
+  avatarFile.setAttribute('aria-label', 'Upload avatar image');
+  const avatarStatus = document.createElement('small');
+  avatarStatus.className = 'settings-help';
+  avatarStatus.textContent = 'PNG, JPEG, WebP, or GIF up to 5 MB; PenS stores a resized copy.';
+  let uploadedAvatar = String(profile.avatar || '').startsWith('data:image/') ? profile.avatar : '';
+  avatarFile.addEventListener('change', async () => {
+    try {
+      uploadedAvatar = await resizeAvatarFile(avatarFile.files[0]);
+      avatarText.value = '';
+      avatarStatus.textContent = 'Avatar ready. Save settings to apply it.';
+    } catch (error) {
+      avatarFile.value = '';
+      avatarStatus.textContent = error.message;
+    }
+  });
+
+  const colorLabel = document.createElement('label');
+  colorLabel.textContent = 'Profile color';
+  const color = document.createElement('input');
+  color.type = 'color';
+  color.value = /^#[0-9a-f]{6}$/i.test(profile.color || '') ? profile.color : '#1a73e8';
+  color.setAttribute('aria-label', 'Profile color');
+  const save = document.createElement('button');
+  save.type = 'button';
+  save.className = 'settings-primary-button';
+  save.textContent = 'Save identity';
+  const status = document.createElement('p');
+  status.className = 'settings-help';
+  save.addEventListener('click', async () => {
+    const name = displayName.value.trim();
+    if (!name) {
+      status.textContent = 'Enter a display name first.';
+      displayName.focus();
+      return;
+    }
+    const avatar = uploadedAvatar || avatarText.value.trim() || name.slice(0, 2).toUpperCase();
+    if (avatar.length > 8 && !avatar.startsWith('data:image/')) {
+      status.textContent = 'Use up to 8 characters for initials or an emoji.';
+      return;
+    }
+    save.disabled = true;
+    try {
+      const updated = await window.electronAPI.updateProfile({
+        displayName: name,
+        fullName: fullName.value.trim(),
+        avatar,
+        color: color.value
+      });
+      if (!updated || updated.error) throw new Error('The profile identity could not be saved.');
+      updateProfileUI(updated);
+      const originList = origins.value.split(',').map(value => value.trim()).filter(Boolean);
+      const validOrigins = originList.filter(value => {
+        try {
+          const parsed = new URL(value);
+          return ['http:', 'https:'].includes(parsed.protocol) && parsed.origin === value.replace(/\/$/, '');
+        } catch {
+          return false;
+        }
+      });
+      if (validOrigins.length !== originList.length) {
+        status.textContent = 'Identity saved, but one or more origins were invalid.';
+      }
+      await window.electronAPI.updatePersonalDetails({
+        name: fullName.value.trim(),
+        email: email.value.trim(),
+        phone: phone.value.trim(),
+        address: address.value.trim(),
+        origins: validOrigins
+      });
+      currentProfile.personalDetails = { name: fullName.value.trim(), email: email.value.trim(), phone: phone.value.trim(), address: address.value.trim(), origins: validOrigins };
+      status.textContent = 'Identity updated.';
+    } catch (error) {
+      status.textContent = `Unable to save identity: ${error.message}`;
+    } finally {
+      save.disabled = false;
+    }
+  });
+
+  form.append(displayName, fullName, detailsHeading, email, phone, address, origins, detailsHelp, avatarLabel, avatarText, avatarFile, avatarStatus, colorLabel, color, save, status);
+  section.appendChild(form);
+  page.prepend(section);
+}
 
 // --- Input Manager (Auto Switching) ---
 window.appMode = 'auto'; // 'auto' | 'pen-lock' | 'browse-lock'
@@ -43,7 +301,9 @@ function setAppMode(mode) {
 function updateEffectiveMode(mode) {
   if (window.effectiveMode !== mode) {
     window.effectiveMode = mode;
-    effectiveModeIndicator.style.backgroundColor = mode === 'pen' ? '#1a73e8' : '#ccc';
+    if (effectiveModeIndicator) {
+      effectiveModeIndicator.style.backgroundColor = mode === 'pen' ? '#1a73e8' : '#ccc';
+    }
     
     // Broadcast to active tab
     const tab = getActiveTab();
@@ -94,6 +354,22 @@ btnMode.addEventListener('click', () => {
   setAppMode(modes[(modes.indexOf(window.appMode) + 1) % 3]);
 });
 
+btnPdfText.addEventListener('click', () => {
+  const tab = getActiveTab();
+  if (!tab || !tab.pdfViewer) return;
+  const enabled = !tab.pdfViewer.textToolEnabled;
+  tab.pdfViewer.setTextTool(enabled);
+  btnPdfText.classList.toggle('selected', enabled);
+  btnPdfText.title = enabled ? 'Click a PDF page to add text' : 'Add text comment to PDF';
+});
+
+btnPdfSave.addEventListener('click', () => {
+  savePdfAnnotations(getActiveTab()).catch((error) => {
+    console.error('Unable to save PDF annotations:', error);
+    alert(`Unable to save PDF annotations: ${error.message}`);
+  });
+});
+
 // --- Shortcuts & Zoom ---
 let currentZoom = 1;
 function applyZoom(delta) {
@@ -105,14 +381,40 @@ function applyZoom(delta) {
   if (currentZoom < 0.25) currentZoom = 0.25;
   if (currentZoom > 5) currentZoom = 5;
 
-  if (tab.webview) tab.webview.setZoomLevel(Math.log(currentZoom) / Math.log(1.2));
-  // PDF viewer zooming logic could be added here later if implemented in pdf-viewer.js
+  if (tab.webview) {
+    tab.webview.setZoomLevel(Math.log(currentZoom) / Math.log(1.2));
+  } else if (tab.pdfViewer) {
+    tab.pdfViewer.setZoom(currentZoom * 1.5);
+  }
 }
+
+window.addEventListener('wheel', (event) => {
+  if (!event.ctrlKey) return;
+  event.preventDefault();
+  event.stopPropagation();
+  applyZoom(event.deltaY < 0 ? 0.1 : -0.1);
+}, { passive: false });
+
+contentArea.addEventListener('wheel', (event) => {
+  if (!event.ctrlKey) return;
+  event.preventDefault();
+  event.stopPropagation();
+  applyZoom(event.deltaY < 0 ? 0.1 : -0.1);
+}, { passive: false, capture: true });
 
 btnZoomIn.addEventListener('click', () => applyZoom(0.2));
 btnZoomOut.addEventListener('click', () => applyZoom(-0.2));
 
 window.addEventListener('keydown', (e) => {
+  const key = e.key.toLowerCase();
+  // Intercept reload shortcuts globally so the app window never refreshes
+  if ((e.ctrlKey && key === 'r') || key === 'f5') {
+    e.preventDefault();
+    e.stopPropagation();
+    reloadActiveTab({ ignoreCache: !!e.shiftKey });
+    return;
+  }
+
   if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
     if (e.key === 'Enter' && document.activeElement === addressBar) navigateTo(addressBar.value);
     return;
@@ -202,13 +504,15 @@ btnSnapshot.addEventListener('click', async () => {
   const tab = getActiveTab();
   if (tab && tab.webview) {
     btnSnapshot.style.opacity = '0.5';
-    const wcId = tab.webview.getWebContentsId();
-    const pdfPath = await window.electronAPI.printToPdf(wcId);
-    btnSnapshot.style.opacity = '1';
-    if (pdfPath) {
-      createPdfTab(pdfPath);
-    } else {
-      alert("Failed to snapshot page.");
+    try {
+      const wcId = tab.webview.getWebContentsId();
+      const pdfPath = await window.electronAPI.printToPdf(wcId);
+      if (pdfPath) createPdfTab(pdfPath);
+    } catch (error) {
+      console.error('Failed to snapshot page:', error);
+      alert(`Unable to save snapshot PDF: ${error.message}`);
+    } finally {
+      btnSnapshot.style.opacity = '1';
     }
   }
 });
@@ -366,11 +670,45 @@ function createPdfTab(filePath) {
   contentArea.appendChild(viewContainer);
   
   const fileUrl = 'file:///' + filePath.replace(/\\/g, '/');
-  const tabObj = { id: tabId, el: tabEl, viewEl: viewContainer, titleEl, isPdf: true, url: fileUrl };
+  const tabObj = { id: tabId, el: tabEl, viewEl: viewContainer, titleEl, isPdf: true, url: fileUrl, filePath };
   tabs.push(tabObj);
   
-  if (window.PDFViewer) tabObj.pdfViewer = new window.PDFViewer(viewContainer, fileUrl);
+  if (window.PDFViewer) {
+    tabObj.pdfViewer = new window.PDFViewer(viewContainer, filePath, fileUrl);
+    tabObj.pdfViewer.ready.then(async () => {
+      const saved = await window.electronAPI.loadNotes(filePath);
+      if (saved && saved.source && saved.source.type === 'pdf') {
+        tabObj.pdfViewer.setAnnotations(saved.annotations);
+      }
+    }).catch((error) => console.error('Unable to restore PDF annotations:', error));
+  } else {
+    setTimeout(() => {
+      if (window.PDFViewer && !tabObj.pdfViewer) {
+        tabObj.pdfViewer = new window.PDFViewer(viewContainer, filePath, fileUrl);
+      }
+    }, 100);
+  }
   activateTab(tabId);
+}
+
+async function savePdfAnnotations(tab) {
+  if (!tab || !tab.pdfViewer) return;
+  await tab.pdfViewer.ready;
+  const exportedPath = await window.electronAPI.exportPdf(
+    tab.filePath,
+    tab.pdfViewer.getAnnotations(),
+    tab.pdfViewer.getStrokes()
+  );
+  if (!exportedPath) return;
+  await window.electronAPI.saveNotes(tab.filePath, {
+    version: 1,
+    source: { type: 'pdf', path: tab.filePath, title: tab.titleEl.textContent },
+    annotations: tab.pdfViewer.getAnnotations(),
+    strokes: tab.pdfViewer.getStrokes()
+  });
+  btnPdfSave.textContent = 'Saved PDF';
+  setTimeout(() => { btnPdfSave.textContent = 'Save'; }, 1200);
+  return exportedPath;
 }
 
 // Resolve URL or Search Query (Default to Google)
@@ -608,14 +946,23 @@ function createTab(url = 'pens://home') {
                 const contCard = document.getElementById(`continue-card-${tabId}`);
                 contSection.style.display = 'block';
                 
-                let title = latest.title || latest.id;
+                let title = readableTitle(latest);
                 let typeIcon = latest.type === 'pdf' ? '📄' : latest.type === 'blank' ? '📓' : '🌐';
                 
-                contCard.innerHTML = `<div style="font-size: 24px; margin-right: 16px;">${typeIcon}</div>
-                                      <div style="flex: 1; overflow: hidden;">
-                                        <div style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #333;">${title}</div>
-                                        <div style="font-size: 12px; color: #666; margin-top: 4px;">Updated ${new Date(latest.updated).toLocaleDateString()}</div>
-                                      </div>`;
+                contCard.replaceChildren();
+                const continueIcon = document.createElement('div');
+                continueIcon.style.cssText = 'font-size: 24px; margin-right: 16px;';
+                continueIcon.textContent = typeIcon;
+                const continueInfo = document.createElement('div');
+                continueInfo.style.cssText = 'flex: 1; overflow: hidden;';
+                const continueTitle = document.createElement('div');
+                continueTitle.style.cssText = 'font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #333;';
+                continueTitle.textContent = title;
+                const continueDate = document.createElement('div');
+                continueDate.style.cssText = 'font-size: 12px; color: #666; margin-top: 4px;';
+                continueDate.textContent = `Updated ${formatDate(latest.updated)}`;
+                continueInfo.append(continueTitle, continueDate);
+                contCard.append(continueIcon, continueInfo);
                 contCard.onclick = () => {
                   if (latest.type === 'web') createTab(latest.source);
                   else if (latest.type === 'pdf') createPdfTab(latest.source);
@@ -630,7 +977,7 @@ function createTab(url = 'pens://home') {
                 card.onmouseover = () => { card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'; card.style.transform = 'translateY(-2px)'; };
                 card.onmouseout = () => { card.style.boxShadow = 'none'; card.style.transform = 'none'; };
                 
-                let title = note.title || note.id;
+                let title = readableTitle(note);
                 
                 const thumbContainer = document.createElement('div');
                 thumbContainer.style.cssText = 'height: 120px; background: #f1f3f4; display: flex; align-items: center; justify-content: center; position: relative; border-bottom: 1px solid #eee;';
@@ -646,13 +993,17 @@ function createTab(url = 'pens://home') {
                 
                 const infoContainer = document.createElement('div');
                 infoContainer.style.cssText = 'padding: 12px;';
-                infoContainer.innerHTML = `
-                  <div style="font-weight: 500; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; color: #333;">${title}</div>
-                  <div style="font-size: 12px; color: #5f6368; display: flex; justify-content: space-between;">
-                     <span>${new Date(note.updated).toLocaleDateString()}</span>
-                     <span>${note.strokeCount} strokes</span>
-                  </div>
-                `;
+                const noteTitle = document.createElement('div');
+                noteTitle.style.cssText = 'font-weight: 500; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; color: #333;';
+                noteTitle.textContent = title;
+                const noteMeta = document.createElement('div');
+                noteMeta.style.cssText = 'font-size: 12px; color: #5f6368; display: flex; justify-content: space-between;';
+                const noteDate = document.createElement('span');
+                noteDate.textContent = formatDate(note.updated);
+                const noteCount = document.createElement('span');
+                noteCount.textContent = formatCount(note.strokeCount, 'stroke');
+                noteMeta.append(noteDate, noteCount);
+                infoContainer.append(noteTitle, noteMeta);
                 
                 card.appendChild(thumbContainer);
                 card.appendChild(infoContainer);
@@ -741,7 +1092,7 @@ function createTab(url = 'pens://home') {
           card.onmouseover = () => { card.style.transform = 'translateY(-4px)'; card.style.boxShadow = '0 6px 16px rgba(0,0,0,0.1)'; };
           card.onmouseout = () => { card.style.transform = 'none'; card.style.boxShadow = 'none'; };
 
-          let title = note.title || note.id;
+          let title = readableTitle(note);
           
           const thumbContainer = document.createElement('div');
           thumbContainer.style.cssText = 'height: 140px; background: #f1f3f4; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid #eee; position: relative;';
@@ -752,18 +1103,25 @@ function createTab(url = 'pens://home') {
             thumbContainer.appendChild(img);
           } else {
             const typeIcon = note.type === 'pdf' ? '📄' : note.type === 'blank' ? '📓' : '🌐';
-            thumbContainer.innerHTML = `<span style="font-size: 48px; opacity: 0.5;">${typeIcon}</span>`;
+            const placeholder = document.createElement('span');
+            placeholder.style.cssText = 'font-size: 48px; opacity: 0.5;';
+            placeholder.textContent = typeIcon;
+            thumbContainer.appendChild(placeholder);
           }
           
           const info = document.createElement('div');
           info.style.cssText = 'padding: 16px; flex: 1; display: flex; flex-direction: column;';
-          info.innerHTML = `
-            <div style="font-weight: 500; font-size: 15px; margin-bottom: 8px; color: #202124; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${title}</div>
-            <div style="margin-top: auto; display: flex; justify-content: space-between; font-size: 12px; color: #5f6368;">
-              <span>${new Date(note.updated).toLocaleDateString()}</span>
-              <span>${note.strokeCount} strokes</span>
-            </div>
-          `;
+          const cardTitle = document.createElement('div');
+          cardTitle.style.cssText = 'font-weight: 500; font-size: 15px; margin-bottom: 8px; color: #202124; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;';
+          cardTitle.textContent = title;
+          const cardMeta = document.createElement('div');
+          cardMeta.style.cssText = 'margin-top: auto; display: flex; justify-content: space-between; font-size: 12px; color: #5f6368;';
+          const cardDate = document.createElement('span');
+          cardDate.textContent = formatDate(note.updated);
+          const cardCount = document.createElement('span');
+          cardCount.textContent = formatCount(note.strokeCount, 'stroke');
+          cardMeta.append(cardDate, cardCount);
+          info.append(cardTitle, cardMeta);
           
           card.appendChild(thumbContainer);
           card.appendChild(info);
@@ -792,7 +1150,7 @@ function createTab(url = 'pens://home') {
   } else if (url === 'pens://history') {
     tabObj.titleEl.textContent = 'History';
     viewContainer.innerHTML = `
-      <div style="padding: 40px; font-family: sans-serif; background: white; height: 100%; overflow-y: auto;">
+      <div class="settings-page" style="padding: 40px; font-family: sans-serif; height: 100%; overflow-y: auto;">
         <h2>Browsing History</h2>
         <button id="btn-clear-history-${tabId}" style="margin-bottom: 20px; padding: 8px; background: #ea4335; color: white; border-radius: 4px;">Clear History</button>
         <div id="history-list-${tabId}">Loading...</div>
@@ -842,13 +1200,15 @@ function createTab(url = 'pens://home') {
   } else if (url === 'pens://downloads') {
     tabObj.titleEl.textContent = 'Downloads';
     viewContainer.innerHTML = `
-      <div style="padding: 40px; font-family: sans-serif; background: white; height: 100%; overflow-y: auto;">
+      <div class="settings-page" style="padding: 40px; font-family: sans-serif; height: 100%; overflow-y: auto;">
         <h2>Downloads</h2>
         <div id="downloads-list-${tabId}">Loading...</div>
       </div>
     `;
     contentArea.appendChild(viewContainer);
     tabs.push(tabObj);
+    const settingsPage = viewContainer.querySelector('.settings-page');
+    if (settingsPage) addIdentitySettings(tabId, settingsPage).catch(error => console.error('Unable to load identity settings:', error));
 
     setTimeout(async () => {
       const list = document.getElementById(`downloads-list-${tabId}`);
@@ -883,7 +1243,7 @@ function createTab(url = 'pens://home') {
   } else if (url === 'pens://settings') {
     tabObj.titleEl.textContent = 'Settings';
     viewContainer.innerHTML = `
-      <div style="padding: 40px; font-family: sans-serif; background: white; height: 100%; overflow-y: auto;">
+      <div class="settings-page" style="padding: 40px; font-family: sans-serif; height: 100%; overflow-y: auto;">
         <h2>Settings</h2>
         <div style="max-width: 600px;">
           <div style="margin-bottom: 20px;">
@@ -933,6 +1293,7 @@ function createTab(url = 'pens://home') {
             shieldsEnabled: document.getElementById(`setting-shields-${tabId}`).checked
           };
           await window.electronAPI.saveSettings(newSettings);
+          applyTheme(newSettings.theme);
           alert('Settings saved!');
         };
       }
@@ -1011,6 +1372,15 @@ function setupWebview(tabObj, url) {
   
   tabObj.webview = webview;
   if (!tabs.includes(tabObj)) tabs.push(tabObj);
+
+  webview.addEventListener('wheel', (event) => {
+    if (!event.ctrlKey) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (activeTabId === tabObj.id) {
+      applyZoom(event.deltaY < 0 ? 0.1 : -0.1);
+    }
+  }, { passive: false });
   
   webview.addEventListener('did-start-loading', () => { tabObj.titleEl.textContent = 'Loading...'; });
   
@@ -1071,6 +1441,32 @@ function setupWebview(tabObj, url) {
       window.handlePointerActivity(e.args[0]);
     } else if (e.channel === 'pointer-leave') {
       window.handlePointerLeave(e.args[0]);
+    } else if (e.channel === 'personal-details-request') {
+      const request = e.args[0] || {};
+      let requestUrl;
+      try {
+        requestUrl = new URL(request.origin || '');
+      } catch {
+        return;
+      }
+      if (tabObj !== getActiveTab() || !tabObj.webview || !/^https?:$/.test(requestUrl.protocol)) return;
+      window.electronAPI.getPersonalDetails(request.origin).then(result => {
+        if (!result?.details) return;
+        const fields = {
+          name: 'name',
+          email: 'email',
+          phone: 'phone',
+          address: 'address'
+        };
+        const fieldName = String(request.field || '').toLowerCase();
+        const selected = fields.email && /email/.test(fieldName) ? 'email'
+          : /phone|tel/.test(fieldName) ? 'phone'
+            : /address|street|city|postal|zip|country/.test(fieldName) ? 'address'
+              : 'name';
+        if (confirm(`Use your saved ${selected} on this site?`)) {
+          tabObj.webview.send('fill-personal-details', result.details);
+        }
+      }).catch(error => console.warn('Autofill unavailable:', error.message));
     }
   });
 }
@@ -1096,6 +1492,9 @@ function activateTab(tabId) {
       tab.viewEl.classList.remove('active');
     }
   });
+  const isPdf = Boolean(getActiveTab() && getActiveTab().pdfViewer);
+  btnPdfText.classList.toggle('active', isPdf);
+  btnPdfSave.classList.toggle('active', isPdf);
   broadcastStyle();
 }
 
@@ -1150,11 +1549,179 @@ async function navigateTo(input) {
   }
 }
 
+async function reloadActiveTab(opts = {}) {
+  const tab = getActiveTab();
+  if (!tab) return;
+
+  if (tab.webview) {
+    try {
+      if (opts.ignoreCache && tab.webview.reloadIgnoringCache) {
+        tab.webview.reloadIgnoringCache();
+      } else {
+        tab.webview.reload();
+      }
+    } catch (err) {
+      console.error('Error reloading webview:', err);
+    }
+    return;
+  }
+
+  if (tab.isPdf && tab.pdfViewer) {
+    try {
+      await tab.pdfViewer.loadPDF();
+    } catch (err) {
+      console.error('Error reloading PDF:', err);
+    }
+    return;
+  }
+
+  if (tab.url) {
+    const tabId = tab.id;
+    if (tab.url === 'pens://home') {
+      if (window.electronAPI) {
+        if (window.electronAPI.getUsername) {
+          window.electronAPI.getUsername().then(username => {
+            const hour = new Date().getHours();
+            const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+            const el = document.getElementById(`home-greeting-${tabId}`);
+            if (el) el.textContent = `${greeting}, ${username}`;
+          });
+        }
+        if (window.electronAPI.getBookmarks) {
+          window.electronAPI.getBookmarks().then(bookmarks => {
+            const bookmarksList = document.getElementById(`home-bookmarks-${tabId}`);
+            if (!bookmarksList) return;
+            bookmarksList.innerHTML = '';
+            bookmarks.slice(0, 8).forEach(b => {
+              const div = document.createElement('div');
+              div.style.cssText = 'text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center;';
+              const icon = document.createElement('div');
+              icon.style.cssText = 'width: 48px; height: 48px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 8px; font-size: 20px; border: 1px solid #eee; color: #1a73e8;';
+              icon.textContent = (b.title || b.url).charAt(0).toUpperCase();
+              const text = document.createElement('div');
+              text.style.cssText = 'font-size: 12px; color: #5f6368; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%;';
+              text.textContent = b.title || b.url;
+              div.appendChild(icon);
+              div.appendChild(text);
+              div.onclick = () => createTab(b.url);
+              bookmarksList.appendChild(div);
+            });
+          });
+        }
+        if (window.electronAPI.listNotes) {
+          window.electronAPI.listNotes().then(notes => {
+            const grid = document.getElementById(`notes-grid-${tabId}`);
+            if (!grid) return;
+            notes.sort((a, b) => b.updated - a.updated);
+            if (notes.length > 0) {
+              const latest = notes[0];
+              const contSection = document.getElementById(`home-continue-${tabId}`);
+              const contCard = document.getElementById(`continue-card-${tabId}`);
+              if (contSection && contCard) {
+                contSection.style.display = 'block';
+                let title = latest.title || latest.id;
+                let typeIcon = latest.type === 'pdf' ? '📄' : latest.type === 'blank' ? '📓' : '🌐';
+                contCard.innerHTML = `<div style="font-size: 24px; margin-right: 16px;">${typeIcon}</div>
+                                      <div style="flex: 1; overflow: hidden;">
+                                        <div style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #333;">${title}</div>
+                                        <div style="font-size: 12px; color: #666; margin-top: 4px;">Updated ${new Date(latest.updated).toLocaleDateString()}</div>
+                                      </div>`;
+                contCard.onclick = () => {
+                  if (latest.type === 'web') createTab(latest.source);
+                  else if (latest.type === 'pdf') createPdfTab(latest.source);
+                  else createTab('pens://notebook?id=' + encodeURIComponent(latest.id));
+                };
+              }
+            }
+            grid.innerHTML = '';
+            notes.slice(0, 4).forEach(note => {
+              const card = document.createElement('div');
+              card.style.cssText = 'background: white; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; cursor: pointer; transition: box-shadow 0.2s, transform 0.2s; display: flex; flex-direction: column;';
+              card.onmouseover = () => { card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'; card.style.transform = 'translateY(-2px)'; };
+              card.onmouseout = () => { card.style.boxShadow = 'none'; card.style.transform = 'none'; };
+              let title = note.title || note.id;
+              const thumbContainer = document.createElement('div');
+              thumbContainer.style.cssText = 'height: 120px; background: #f1f3f4; display: flex; align-items: center; justify-content: center; position: relative; border-bottom: 1px solid #eee;';
+              if (note.thumbnail) {
+                 const img = document.createElement('img');
+                 img.src = note.thumbnail;
+                 img.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+                 thumbContainer.appendChild(img);
+              } else {
+                 const typeIcon = note.type === 'pdf' ? '📄' : note.type === 'blank' ? '📓' : '🌐';
+                 thumbContainer.innerHTML = `<span style="font-size: 40px; opacity: 0.5;">${typeIcon}</span>`;
+              }
+              const infoContainer = document.createElement('div');
+              infoContainer.style.cssText = 'padding: 12px;';
+              infoContainer.innerHTML = `
+                <div style="font-weight: 500; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; color: #333;">${title}</div>
+                <div style="font-size: 12px; color: #5f6368; display: flex; justify-content: space-between;">
+                   <span>${new Date(note.updated).toLocaleDateString()}</span>
+                   <span>${note.strokeCount} strokes</span>
+                </div>
+              `;
+              card.appendChild(thumbContainer);
+              card.appendChild(infoContainer);
+              card.onclick = () => {
+                if (note.type === 'web') createTab(note.source);
+                else if (note.type === 'pdf') createPdfTab(note.source);
+                else createTab('pens://notebook?id=' + encodeURIComponent(note.id));
+              };
+              grid.appendChild(card);
+            });
+            if (notes.length === 0) grid.innerHTML = '<div style="color: #666;">No notes yet. Start exploring!</div>';
+          });
+        }
+      }
+    } else if (tab.url.startsWith('pens://notebook')) {
+      if (tab.engine) tab.engine.load();
+    } else if (tab.url === 'pens://notes') {
+      const searchInput = document.getElementById(`notes-search-${tabId}`);
+      if (searchInput) searchInput.dispatchEvent(new Event('input'));
+    } else if (tab.url === 'pens://history') {
+      if (window.electronAPI && window.electronAPI.getHistory) {
+        const history = await window.electronAPI.getHistory();
+        const historyList = document.getElementById(`history-list-${tabId}`);
+        if (historyList) {
+          historyList.innerHTML = '';
+          history.forEach(h => {
+            const div = document.createElement('div');
+            div.style.cssText = 'padding: 8px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; cursor: pointer;';
+            div.innerHTML = `<div><div style="font-weight: 500;">${h.title || h.url}</div><div style="font-size: 12px; color: #666;">${h.url} - ${new Date(h.timestamp).toLocaleString()}</div></div>`;
+            div.onclick = () => createTab(h.url);
+            historyList.appendChild(div);
+          });
+          if (history.length === 0) historyList.innerHTML = 'No history yet.';
+        }
+      }
+    } else if (tab.url === 'pens://downloads') {
+      if (window.electronAPI && window.electronAPI.getDownloads) {
+        const dls = await window.electronAPI.getDownloads();
+        const list = document.getElementById(`downloads-list-${tabId}`);
+        if (list) {
+          list.innerHTML = '';
+          dls.forEach(d => {
+            const div = document.createElement('div');
+            div.style.cssText = 'padding: 8px; border-bottom: 1px solid #eee;';
+            div.innerHTML = `<strong>${d.filename}</strong> - ${d.state} (${(d.receivedBytes / 1024 / 1024).toFixed(2)} MB)`;
+            list.appendChild(div);
+          });
+          if (dls.length === 0) list.innerHTML = 'No downloads yet.';
+        }
+      }
+    }
+  }
+}
+
 btnBack.addEventListener('click', () => { const tab = getActiveTab(); if (tab && tab.webview && tab.webview.canGoBack()) tab.webview.goBack(); });
 btnForward.addEventListener('click', () => { const tab = getActiveTab(); if (tab && tab.webview && tab.webview.canGoForward()) tab.webview.goForward(); });
-btnReload.addEventListener('click', () => { const tab = getActiveTab(); if (tab && tab.webview) tab.webview.reload(); });
+btnReload.addEventListener('click', () => reloadActiveTab());
 newTabBtn.addEventListener('click', () => createTab());
 addressBar.addEventListener('keydown', (e) => { if (e.key === 'Enter') navigateTo(addressBar.value); });
+
+if (window.electronAPI && window.electronAPI.onReloadActiveTab) {
+  window.electronAPI.onReloadActiveTab((opts) => reloadActiveTab(opts));
+}
 
 
 
@@ -1338,8 +1905,13 @@ updateSizeDisplay(currentSize);
 // Initialize App
 setAppMode('auto');
 if (window.electronAPI && window.electronAPI.getPreloadPath) {
-  window.electronAPI.getPreloadPath().then(path => {
-    webviewPreloadPath = 'file:///' + path.replace(/\\/g, '/');
+  window.electronAPI.getPreloadPath().then(preloadPath => {
+    if (typeof preloadPath === 'string' && preloadPath.length > 0) {
+      webviewPreloadPath = 'file:///' + preloadPath.replace(/\\/g, '/');
+    }
+    createTab();
+  }).catch((error) => {
+    console.error('Unable to load webview preload path:', error);
     createTab();
   });
 } else {
@@ -1353,6 +1925,72 @@ const profileDropdown = document.getElementById('profile-dropdown');
 const profileList = document.getElementById('profile-list');
 const btnAddProfile = document.getElementById('btn-add-profile');
 const btnGuestProfile = document.getElementById('btn-guest-profile');
+const btnOpenSettings = document.getElementById('btn-open-settings');
+const btnShields = document.getElementById('btn-shields');
+const shieldsPanel = document.getElementById('shields-panel');
+const shieldsEnabled = document.getElementById('shields-enabled');
+const btnClearSiteData = document.getElementById('btn-clear-site-data');
+const btnDownloads = document.getElementById('btn-downloads');
+const btnMenu = document.getElementById('btn-menu');
+
+if (window.electronAPI?.getSettings) {
+  window.electronAPI.getSettings().then(settings => applyTheme(settings?.theme)).catch(error => {
+    console.warn('Unable to load theme settings:', error);
+    applyTheme('system');
+  });
+}
+
+if (btnDownloads) {
+  btnDownloads.addEventListener('click', async () => {
+    try {
+      const downloads = await window.electronAPI.getDownloads();
+      const items = Array.isArray(downloads) ? downloads : [];
+      alert(items.length ? items.map(item => item.filename || item.url || 'Download').join('\n') : 'No downloads yet.');
+    } catch (error) {
+      console.error('Unable to load downloads:', error);
+    }
+  });
+}
+
+if (btnMenu) {
+  btnMenu.addEventListener('click', () => {
+    if (btnProfileMenu) btnProfileMenu.click();
+  });
+}
+
+if (btnShields && shieldsPanel) {
+  btnShields.addEventListener('click', async (event) => {
+    event.stopPropagation();
+    shieldsPanel.style.display = shieldsPanel.style.display === 'none' ? 'block' : 'none';
+    if (shieldsPanel.style.display === 'block' && window.electronAPI.getSettings) {
+      const settings = await window.electronAPI.getSettings();
+      shieldsEnabled.checked = settings.shieldsEnabled !== false;
+    }
+  });
+}
+
+if (shieldsEnabled) {
+  shieldsEnabled.addEventListener('change', async () => {
+    const settings = await window.electronAPI.getSettings();
+    await window.electronAPI.saveSettings({ ...settings, shieldsEnabled: shieldsEnabled.checked });
+    btnShields.style.color = shieldsEnabled.checked ? '#188038' : '#5f6368';
+  });
+}
+
+if (btnClearSiteData) {
+  btnClearSiteData.addEventListener('click', async () => {
+    await window.electronAPI.clearBrowsingData();
+    btnClearSiteData.textContent = 'Site data cleared';
+    setTimeout(() => { btnClearSiteData.textContent = 'Clear site data'; }, 1500);
+  });
+}
+
+if (btnOpenSettings) {
+  btnOpenSettings.addEventListener('click', () => {
+    profileDropdown.style.display = 'none';
+    createTab('pens://settings');
+  });
+}
 
 if (btnProfileMenu) {
   btnProfileMenu.addEventListener('click', async () => {
@@ -1364,8 +2002,23 @@ if (btnProfileMenu) {
       const profiles = await window.electronAPI.getProfiles();
       profiles.forEach(p => {
         const btn = document.createElement('button');
-        btn.style.cssText = `width: 100%; text-align: left; padding: 8px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; ${p.id === currentProfile?.id ? 'background: #e8f0fe;' : ''}`;
-        btn.innerHTML = `<span>${p.avatar}</span> <span>${p.name}</span>`;
+        btn.className = 'profile-picker-item';
+        if (p.id === currentProfile?.id) btn.classList.add('active');
+        const avatar = document.createElement('span');
+        if (String(p.avatar || '').startsWith('data:image/')) {
+          const image = document.createElement('img');
+          image.src = p.avatar;
+          image.alt = `${profileDisplayName(p)} avatar`;
+          image.width = 28;
+          image.height = 28;
+          image.style.cssText = 'width: 28px; height: 28px; border-radius: 50%; object-fit: cover;';
+          avatar.appendChild(image);
+        } else {
+          avatar.textContent = p.avatar || profileDisplayName(p).charAt(0).toUpperCase();
+        }
+        const name = document.createElement('span');
+        name.textContent = profileDisplayName(p);
+        btn.append(avatar, name);
         btn.onclick = () => {
           window.electronAPI.openProfile(p.id);
           profileDropdown.style.display = 'none';
@@ -1375,38 +2028,124 @@ if (btnProfileMenu) {
     }
   });
 
-  btnAddProfile.addEventListener('click', async () => {
-    const name = prompt("Enter new profile name:", "Work");
-    if (name) {
-      const colors = ['#ea4335', '#fbbc04', '#34a853', '#9c27b0'];
-      const randomColor = colors[Math.floor(Math.random() * colors.length)];
-      const newProfile = await window.electronAPI.createProfile(name, randomColor, '👤');
-      window.electronAPI.openProfile(newProfile.id);
-      profileDropdown.style.display = 'none';
+  // --- New Profile Modal Management ---
+  const newProfileModal = document.getElementById('new-profile-modal');
+  const modalProfileName = document.getElementById('modal-profile-name');
+  const modalProfileBtnCancel = document.getElementById('modal-profile-btn-cancel');
+  const modalProfileBtnCreate = document.getElementById('modal-profile-btn-create');
+  let selectedProfileColor = '#1a73e8';
+  let selectedProfileAvatar = '👤';
+
+  // Profile modal color picker
+  document.querySelectorAll('.profile-color-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      document.querySelectorAll('.profile-color-opt').forEach(o => {
+        o.classList.remove('active');
+        o.style.borderColor = 'transparent';
+        o.style.boxShadow = 'none';
+      });
+      opt.classList.add('active');
+      opt.style.borderColor = '#fff';
+      opt.style.boxShadow = `0 0 0 2px ${opt.dataset.color}`;
+      selectedProfileColor = opt.dataset.color;
+    });
+  });
+
+  // Profile modal avatar picker
+  document.querySelectorAll('.profile-avatar-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.profile-avatar-opt').forEach(b => {
+        b.classList.remove('active');
+        b.style.borderColor = '#dadce0';
+        b.style.background = 'white';
+      });
+      btn.classList.add('active');
+      btn.style.borderColor = '#1a73e8';
+      btn.style.background = '#e8f0fe';
+      selectedProfileAvatar = btn.dataset.avatar;
+    });
+  });
+
+  btnAddProfile.addEventListener('click', () => {
+    profileDropdown.style.display = 'none';
+    if (modalProfileName) modalProfileName.value = '';
+    if (newProfileModal) {
+      newProfileModal.style.display = 'flex';
+      setTimeout(() => modalProfileName && modalProfileName.focus(), 50);
     }
   });
 
+  if (modalProfileBtnCancel && newProfileModal) {
+    modalProfileBtnCancel.addEventListener('click', () => {
+      newProfileModal.style.display = 'none';
+    });
+  }
+
+  if (modalProfileBtnCreate && newProfileModal) {
+    modalProfileBtnCreate.addEventListener('click', async () => {
+      const name = modalProfileName ? modalProfileName.value.trim() : '';
+      if (!name) {
+        if (modalProfileName) modalProfileName.focus();
+        return;
+      }
+      newProfileModal.style.display = 'none';
+      const newProfile = await window.electronAPI.createProfile(name, selectedProfileColor, selectedProfileAvatar);
+      if (newProfile && newProfile.id) {
+        window.electronAPI.openProfile(newProfile.id);
+      }
+    });
+  }
+
+  if (modalProfileName) {
+    modalProfileName.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        if (modalProfileBtnCreate) modalProfileBtnCreate.click();
+      } else if (e.key === 'Escape') {
+        if (newProfileModal) newProfileModal.style.display = 'none';
+      }
+    });
+  }
+
   btnGuestProfile.addEventListener('click', () => {
-    window.electronAPI.openProfile('guest');
     profileDropdown.style.display = 'none';
+    window.electronAPI.openProfile('guest');
   });
 
   // Click outside to close dropdown
   window.addEventListener('click', (e) => {
     if (!e.target.closest('.profile-container')) profileDropdown.style.display = 'none';
+    if (shieldsPanel && !e.target.closest('#shields-panel') && !e.target.closest('#btn-shields')) {
+      shieldsPanel.style.display = 'none';
+    }
+  });
+}
+
+// --- Clear Screen Ink Logic ---
+const btnClearInk = document.getElementById('btn-clear-ink');
+if (btnClearInk) {
+  btnClearInk.addEventListener('click', () => {
+    const tab = getActiveTab();
+    if (!tab) return;
+    if (tab.pdfViewer) {
+      tab.pdfViewer.clear();
+    } else if (tab.engine) {
+      tab.engine.clear();
+    } else if (tab.webview && tab.webview.send) {
+      tab.webview.send('clear-strokes');
+    }
   });
 }
 
 if (window.electronAPI && window.electronAPI.onProfileInfo) {
   window.electronAPI.onProfileInfo((profile) => {
-    currentProfile = profile;
-    if (btnProfileMenu) {
-      btnProfileMenu.textContent = profile.avatar;
-      btnProfileMenu.style.borderColor = profile.color;
-    }
-    document.documentElement.style.setProperty('--accent-color', profile.color);
-    document.getElementById('titlebar').style.backgroundColor = profile.color;
+    updateProfileUI(profile);
   });
+}
+
+if (window.electronAPI && window.electronAPI.getCurrentProfile) {
+  window.electronAPI.getCurrentProfile().then((profile) => {
+    updateProfileUI(profile);
+  }).catch((error) => console.error('Unable to load current profile:', error));
 }
 
 // --- Bookmarks UI (Stage 2 foundation) ---

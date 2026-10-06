@@ -1,10 +1,13 @@
 class PDFViewer {
-  constructor(container, fileUrl) {
+  constructor(container, filePath, fileUrl) {
     this.container = container;
-    this.fileUrl = fileUrl;
+    this.filePath = filePath || fileUrl;
+    this.fileUrl = fileUrl || filePath;
     this.scale = 1.5;
     this.pdfDoc = null;
     this.engines = [];
+    this.annotations = [];
+    this.textToolEnabled = false;
     
     this.container.style.overflowY = 'auto';
     this.container.style.backgroundColor = '#525659';
@@ -14,24 +17,73 @@ class PDFViewer {
     this.container.style.padding = '20px 0';
     this.container.style.height = '100%';
 
-    this.loadPDF();
+    this.ready = this.loadPDF();
   }
 
   async loadPDF() {
     try {
-      const loadingTask = window.pdfjsLib.getDocument({
-        url: this.fileUrl,
-        isEvalSupported: false,
-        enableScripting: false
-      });
+      this.container.innerHTML = `<div style="color:#e8eaed; padding: 40px; font-family: 'Segoe UI', sans-serif; display: flex; align-items: center; justify-content: center; gap: 10px;">
+        <span>Loading PDF...</span>
+      </div>`;
+
+      let docInitParams = null;
+      if (window.electronAPI && window.electronAPI.readPdf) {
+        const result = await window.electronAPI.readPdf(this.filePath);
+        if (result && result.error) {
+          throw new Error(result.error);
+        }
+        if (result && !(result instanceof Error)) {
+          let uint8;
+          if (result instanceof Uint8Array) {
+            uint8 = result;
+          } else if (result instanceof ArrayBuffer) {
+            uint8 = new Uint8Array(result);
+          } else if (result.type === 'Buffer' && Array.isArray(result.data)) {
+            uint8 = Uint8Array.from(result.data);
+          } else if (result.data instanceof ArrayBuffer) {
+            uint8 = new Uint8Array(result.data);
+          }
+          if (!uint8) throw new Error('The selected PDF could not be read.');
+          docInitParams = {
+            data: uint8,
+            isEvalSupported: false,
+            enableScripting: false
+          };
+        }
+      }
+
+      if (!docInitParams) {
+        docInitParams = {
+          url: this.fileUrl,
+          isEvalSupported: false,
+          enableScripting: false
+        };
+      }
+
+      let attempts = 0;
+      while (!window.pdfjsLib && attempts < 50) {
+        await new Promise(r => setTimeout(r, 100));
+        attempts++;
+      }
+      if (!window.pdfjsLib) {
+        throw new Error('PDF.js library is not ready or failed to load');
+      }
+
+      const loadingTask = window.pdfjsLib.getDocument(docInitParams);
       this.pdfDoc = await loadingTask.promise;
       
+      this.container.innerHTML = '';
+      this.engines = [];
       for (let pageNum = 1; pageNum <= this.pdfDoc.numPages; pageNum++) {
         await this.renderPage(pageNum);
       }
+      this.renderAnnotations();
     } catch (e) {
       console.error('Error loading PDF:', e);
-      this.container.innerHTML = `<div style="color:white; padding: 20px;">Error loading PDF: ${e.message}</div>`;
+      this.container.innerHTML = `<div style="color:white; padding: 40px; font-family: 'Segoe UI', sans-serif; text-align: center;">
+        <h3 style="margin: 0 0 10px 0; color: #f28b82; font-size: 18px;">Error loading PDF</h3>
+        <p style="color: #dadce0; font-size: 14px; max-width: 600px; margin: 0 auto;">${e.message}</p>
+      </div>`;
     }
   }
 
@@ -49,18 +101,23 @@ class PDFViewer {
 
     // Render PDF to canvas
     const pdfCanvas = document.createElement('canvas');
-    pdfCanvas.width = viewport.width;
-    pdfCanvas.height = viewport.height;
+    const outputScale = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+    pdfCanvas.width = Math.floor(viewport.width * outputScale);
+    pdfCanvas.height = Math.floor(viewport.height * outputScale);
+    pdfCanvas.style.width = `${viewport.width}px`;
+    pdfCanvas.style.height = `${viewport.height}px`;
     pdfCanvas.style.display = 'block';
     
     const context = pdfCanvas.getContext('2d');
     const renderContext = {
       canvasContext: context,
-      viewport: viewport
+      viewport,
+      transform: outputScale === 1 ? null : [outputScale, 0, 0, outputScale, 0, 0]
     };
     
     await page.render(renderContext).promise;
     
+    pageContainer.dataset.pageNumber = String(pageNum);
     pageContainer.appendChild(pdfCanvas);
     this.container.appendChild(pageContainer);
 
@@ -70,6 +127,64 @@ class PDFViewer {
     if (window.effectiveMode) engine.setMode(window.effectiveMode);
     if (window.isEraser) engine.setEraser(window.isEraser);
     this.engines.push(engine);
+
+    pageContainer.addEventListener('click', (event) => {
+      if (!this.textToolEnabled || event.target.closest('.pdf-text-annotation')) return;
+      const rect = pageContainer.getBoundingClientRect();
+      const text = window.prompt('Enter a comment or text for this PDF page:');
+      if (!text || !text.trim()) return;
+      this.annotations.push({
+        page: pageNum,
+        x: Math.max(0, (event.clientX - rect.left) / rect.width),
+        y: Math.max(0, (event.clientY - rect.top) / rect.height),
+        text: text.trim()
+      });
+      this.renderAnnotations();
+    });
+  }
+
+  setTextTool(enabled) {
+    this.textToolEnabled = enabled;
+    this.container.classList.toggle('pdf-text-mode', enabled);
+  }
+
+  renderAnnotations() {
+    this.container.querySelectorAll('.pdf-text-annotation').forEach((node) => node.remove());
+    for (const annotation of this.annotations) {
+      const page = this.container.querySelector(`[data-page-number="${annotation.page}"]`);
+      if (!page) continue;
+      const node = document.createElement('div');
+      node.className = 'pdf-text-annotation';
+      node.textContent = annotation.text;
+      node.style.left = `${annotation.x * 100}%`;
+      node.style.top = `${annotation.y * 100}%`;
+      page.appendChild(node);
+    }
+  }
+
+  async setZoom(scale) {
+    this.scale = Math.min(4, Math.max(0.5, scale));
+    await this.loadPDF();
+  }
+
+  zoomBy(delta) {
+    return this.setZoom(this.scale + delta);
+  }
+
+  getAnnotations() {
+    return this.annotations.map((annotation) => ({ ...annotation }));
+  }
+
+  setAnnotations(annotations) {
+    this.annotations = Array.isArray(annotations) ? annotations : [];
+    this.renderAnnotations();
+  }
+
+  getStrokes() {
+    return this.engines.flatMap((engine, index) => engine.strokes.map((stroke) => ({
+      ...stroke,
+      page: index + 1
+    })));
   }
 
   setMode(mode) {
@@ -96,6 +211,10 @@ class PDFViewer {
         break;
       }
     }
+  }
+
+  clear() {
+    this.engines.forEach(eng => eng.clear());
   }
 }
 

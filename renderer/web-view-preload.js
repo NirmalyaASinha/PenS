@@ -1,5 +1,37 @@
 const { ipcRenderer } = require('electron');
 
+if (process.isMainFrame) {
+  window.addEventListener('focusin', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
+    const type = String(target.type || '').toLowerCase();
+    if (['password', 'hidden', 'file'].includes(type)) return;
+    ipcRenderer.sendToHost('personal-details-request', {
+      origin: window.location.origin,
+      field: target.name || target.id || target.autocomplete || '',
+      type
+    });
+  }, true);
+}
+
+ipcRenderer.on('fill-personal-details', (_event, details) => {
+  if (!process.isMainFrame || !details) return;
+  const active = document.activeElement;
+  if (!(active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement)) return;
+  const key = `${active.name || ''} ${active.id || ''} ${active.autocomplete || ''}`.toLowerCase();
+  let value = '';
+  if (/email/.test(key)) value = details.email || '';
+  else if (/phone|tel/.test(key)) value = details.phone || '';
+  else if (/address|street|city|postal|zip|country/.test(key)) value = details.address || '';
+  else value = details.name || '';
+  if (!value) return;
+  const prototype = active instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+  const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
+  if (setter) setter.call(active, value);
+  active.dispatchEvent(new Event('input', { bubbles: true }));
+  active.dispatchEvent(new Event('change', { bubbles: true }));
+});
+
 let canvas, activeCanvas, ctx, activeCtx;
 let strokes = [], undoneStrokes = [], currentStroke = null;
 let mode = 'browse', isEraser = false;
@@ -197,6 +229,7 @@ ipcRenderer.on('set-mode', (e, newMode) => { mode = newMode; if (activeCanvas) a
 ipcRenderer.on('set-eraser', (e, active) => isEraser = active);
 ipcRenderer.on('undo', () => { if (strokes.length > 0) { undoneStrokes.push(strokes.pop()); render(); autoSave(); } });
 ipcRenderer.on('redo', () => { if (undoneStrokes.length > 0) { strokes.push(undoneStrokes.pop()); render(); autoSave(); } });
+ipcRenderer.on('clear-strokes', () => { if (strokes.length > 0) { undoneStrokes = [...strokes]; strokes = []; render(); autoSave(); } });
 ipcRenderer.on('load-strokes', (e, data) => { if (data && data.strokes) { strokes = data.strokes; render(); } });
 ipcRenderer.on('set-style', (e, style) => { color = style.color; lineWidth = style.size; currentTool = style.tool || 'pen'; updateCursor(); });
 

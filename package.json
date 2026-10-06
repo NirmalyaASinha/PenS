@@ -1,16 +1,30 @@
 {
   "name": "pens",
-  "version": "1.0.0",
-  "description": "Digital notebook for pen tablet",
+  "productName": "PenS",
+  "version": "1.0.0-rc.1",
+  "description": "Digital notebook & pen tablet browser for Windows",
+  "author": "Nirmalya Sinha",
   "main": "main/main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder"
+    "build": "npm.cmd run dist",
+    "dist": "node scripts/build.js",
+    "release:dry": "node scripts/release.js --dry-run",
+    "release": "node scripts/release.js --publish"
   },
   "build": {
-    "appId": "com.pens.app",
+    "appId": "com.nirmalyasinha.pens",
+    "productName": "PenS",
+    "copyright": "Copyright © 2026 Nirmalya Sinha",
+    "icon": "LOGO.png",
     "afterPack": "./afterPack.js",
     "asar": true,
+    "asarUnpack": [
+      "**/*.node"
+    ],
+    "directories": {
+      "output": "dist"
+    },
     "files": [
       "**/*",
       "!**/*.map",
@@ -24,19 +38,45 @@
       "node_modules/**/*"
     ],
     "win": {
+      "executableName": "PenS",
       "target": [
-        "nsis",
-        "portable"
-      ]
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signAndEditExecutable": false,
+      "requestedExecutionLevel": "asInvoker",
+      "verifyUpdateCodeSignature": true,
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "legalTrademarks": "PenS"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "guid": "E8F3C92B-4A71-4E1D-9B67-94751A2E8B99",
+      "shortcutName": "PenS",
+      "uninstallDisplayName": "PenS",
+      "runAfterFinish": true,
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}.${ext}"
     },
     "publish": {
-      "provider": "github"
+      "provider": "github",
+      "owner": "NirmalyaASinha",
+      "repo": "PenS"
     }
   },
   "devDependencies": {

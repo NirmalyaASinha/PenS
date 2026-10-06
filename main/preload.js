@@ -2,6 +2,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   openPdf: () => ipcRenderer.invoke('dialog:openPdf'),
+  readPdf: (filePath) => ipcRenderer.invoke('pdf:read', filePath),
+  exportPdf: (sourcePath, annotations, strokes) => ipcRenderer.invoke('pdf:export', sourcePath, annotations, strokes),
   saveNotes: (id, data) => ipcRenderer.invoke('store:save', id, data),
   loadNotes: (id) => ipcRenderer.invoke('store:load', id),
   listNotes: () => ipcRenderer.invoke('store:list'),
@@ -11,7 +13,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Profile APIs
   getProfiles: () => ipcRenderer.invoke('profiles:get-all'),
+  getCurrentProfile: () => ipcRenderer.invoke('profiles:get-current'),
   createProfile: (name, color, avatar) => ipcRenderer.invoke('profiles:create', name, color, avatar),
+  updateProfile: (profile) => ipcRenderer.invoke('profiles:update', profile),
+  getPersonalDetails: (origin) => ipcRenderer.invoke('profiles:personal-details:get', origin),
+  updatePersonalDetails: (details) => ipcRenderer.invoke('profiles:personal-details:update', details),
   openProfile: (id) => ipcRenderer.invoke('profiles:open', id),
   onProfileInfo: (callback) => ipcRenderer.on('profile-info', (e, profile) => callback(profile)),
 
@@ -38,5 +44,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addPassword: (url, user, pass) => ipcRenderer.invoke('passwords:add', url, user, pass),
 
   // Sync
-  exportProfile: () => ipcRenderer.invoke('sync:export')
+  exportProfile: () => ipcRenderer.invoke('sync:export'),
+
+  // Tab reload listener from main process
+  onReloadActiveTab: (callback) => ipcRenderer.on('tab:reload-active', (e, opts) => callback(opts))
 });

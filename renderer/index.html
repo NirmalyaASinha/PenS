@@ -31,7 +31,7 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
         </button>
       </div>
-      
+
       <div class="address-bar-container">
         <svg class="url-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
         <input type="text" id="address-bar" placeholder="Search Google or enter web address..." />
@@ -58,36 +58,45 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
           <span>PDF</span>
         </button>
+        <button id="btn-pdf-text" class="primary-btn pdf-only-control" title="Add text comment to PDF">T</button>
+        <button id="btn-pdf-save" class="primary-btn pdf-only-control" title="Save PDF annotations">Save</button>
       </div>
-      
+
       <div class="mode-group">
         <button id="btn-mode" class="mode-auto" title="Cycle Modes (P)">Auto</button>
-        <div id="effective-mode-indicator" title="Current Active Mode"></div>
-        
-        <!-- Profile Manager -->
-        <div class="profile-container" style="position: relative; margin-left: 12px;">
-          <button id="btn-profile-menu" title="Profiles" style="border-radius: 50%; width: 32px; height: 32px; font-size: 16px; border: 2px solid var(--accent-color); padding: 0;">👤</button>
-          <div id="profile-dropdown" style="display: none; position: absolute; right: 0; top: 45px; background: white; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 220px; z-index: 1000; padding: 8px; font-family: sans-serif;">
-            <div id="profile-list" style="margin-bottom: 8px;"></div>
-            <hr style="border: none; border-top: 1px solid #eee;">
-            <button id="btn-add-profile" style="width: 100%; text-align: left; padding: 8px; font-weight: 500;">+ Add Profile</button>
-            <button id="btn-guest-profile" style="width: 100%; text-align: left; padding: 8px; font-weight: 500;">🎭 Open Guest Mode</button>
+      </div>
+      <div class="toolbar-actions">
+        <button id="btn-shields" class="toolbar-icon-btn" title="Privacy Shields">🛡</button>
+        <button id="btn-downloads" class="toolbar-icon-btn" title="Downloads">↓</button>
+        <button id="btn-menu" class="toolbar-icon-btn" title="Menu">⋮</button>
+        <div class="profile-container">
+          <button id="btn-profile-menu" class="profile-button" title="Profiles">👤</button>
+          <div id="profile-dropdown" class="profile-dropdown" style="display: none;">
+            <div class="profile-dropdown-title">PenS profiles</div>
+            <div id="profile-list"></div>
+            <button id="btn-add-profile" class="profile-menu-action">＋ Create profile</button>
+            <button id="btn-guest-profile" class="profile-menu-action">🕵 Guest profile</button>
+            <button id="btn-open-settings" class="profile-menu-action">⚙ Settings</button>
           </div>
         </div>
       </div>
     </header>
 
-    <!-- Bookmarks Bar (Stage 2) -->
     <div id="bookmarks-bar" style="display: flex; align-items: center; padding: 4px 8px; background: #f1f3f4; border-bottom: 1px solid #ddd; gap: 8px; font-size: 12px;">
       <button id="btn-add-bookmark" style="padding: 4px; font-size: 12px;">⭐ Bookmark</button>
       <div id="bookmarks-list" style="display: flex; gap: 8px; overflow-x: auto;"></div>
+    </div>
+    <div id="shields-panel" class="shields-panel" style="display: none;">
+      <strong>Privacy Shields</strong>
+      <label><input id="shields-enabled" type="checkbox" checked> Block trackers and ads</label>
+      <button id="btn-clear-site-data">Clear site data</button>
     </div>
 
     <!-- Main Content Area -->
     <main id="content-area">
       <!-- The Home Screen is injected dynamically or managed here -->
     </main>
-    
+
     <!-- Docked Pen Palette (Right Side) -->
     <div id="palette-dock" class="palette-dock minimized unpinned">
       <!-- Minimized Single Icon Trigger -->
@@ -106,6 +115,28 @@
               <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
             </svg>
             <span>Ink Tools</span>
+          </div>
+          <div id="new-profile-modal" class="profile-modal" style="display: none;">
+            <div class="profile-modal-card">
+              <h2>Create profile</h2>
+              <input id="modal-profile-name" type="text" maxlength="50" placeholder="Profile name">
+              <div class="profile-options">
+                <div class="profile-color-opt active" data-color="#1a73e8" style="background:#1a73e8;"></div>
+                <div class="profile-color-opt" data-color="#d93025" style="background:#d93025;"></div>
+                <div class="profile-color-opt" data-color="#188038" style="background:#188038;"></div>
+                <div class="profile-color-opt" data-color="#9334e6" style="background:#9334e6;"></div>
+              </div>
+              <div class="profile-options">
+                <button class="profile-avatar-opt active" data-avatar="👤">👤</button>
+                <button class="profile-avatar-opt" data-avatar="🧑‍💻">🧑‍💻</button>
+                <button class="profile-avatar-opt" data-avatar="📚">📚</button>
+                <button class="profile-avatar-opt" data-avatar="🎨">🎨</button>
+              </div>
+              <div class="profile-modal-actions">
+                <button id="modal-profile-btn-cancel">Cancel</button>
+                <button id="modal-profile-btn-create">Create</button>
+              </div>
+            </div>
           </div>
           <div class="fp-header-actions">
             <button id="fp-btn-pin" class="fp-icon-btn" title="Pin palette open" aria-label="Pin palette">
@@ -162,7 +193,7 @@
         </div>
       </div>
     </div>
-    
+
     <!-- Unsaved Sketch Decision Modal -->
     <div id="sketch-prompt-modal" class="modal-backdrop" style="display: none;">
       <div class="modal-card">
@@ -195,7 +226,7 @@
       </div>
     </div>
   </div>
-  
+
   <script type="module" src="pdf-init.js"></script>
   <script src="ink-engine.js" defer></script>
   <script src="pdf-viewer.js" defer></script>
