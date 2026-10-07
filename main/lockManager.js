@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { safeStorage } = require('electron');
 const path = require('path');
 const profileManager = require('./profileManager');
 const utils = require('./utils');
@@ -26,25 +27,78 @@ class LockManager {
   constructor() {
     this.filePath = path.join(profileManager.baseDir, 'lock-state.json');
     this.states = {};
+    this.integrityKey = null;
+    this.integrityFailure = false;
+    this.needsMigration = false;
+  }
+
+  initialize() {
     this.load();
+    if (this.integrityFailure) {
+      this.states = Object.fromEntries(Object.entries(this.states).map(([profileId, state]) => [
+        profileId,
+        { ...state, status: STATES.LOCKED, lockedAt: Date.now() }
+      ]));
+    }
+    if (this.needsMigration || this.integrityFailure) this.save();
+  }
+
+  canonicalStates(states) {
+    return JSON.stringify(states, Object.keys(states).sort());
+  }
+
+  getIntegrityKey(protectedKey) {
+    if (!safeStorage.isEncryptionAvailable()) {
+      throw new LockError('LOCK_INTEGRITY', 'OS-protected lock storage is unavailable.');
+    }
+    if (protectedKey) {
+      return Buffer.from(safeStorage.decryptString(Buffer.from(protectedKey, 'base64')), 'base64');
+    }
+    const key = crypto.randomBytes(32);
+    return key;
   }
 
   load() {
     try {
       const data = utils.safeLoadJsonSync(this.filePath);
       if (!data || !data.profiles || typeof data.profiles !== 'object') return;
-      if (data.schemaVersion === 1 || data.schemaVersion === 2) this.states = data.profiles;
+      this.states = data.profiles;
+      if (data.schemaVersion === 3 && data.integrity?.protectedKey && data.integrity?.digest) {
+        this.integrityKey = this.getIntegrityKey(data.integrity.protectedKey);
+        const expected = crypto.createHmac('sha256', this.integrityKey)
+          .update(this.canonicalStates(this.states))
+          .digest('base64');
+        const actual = Buffer.from(data.integrity.digest, 'base64');
+        const expectedBuffer = Buffer.from(expected, 'base64');
+        if (actual.length !== expectedBuffer.length || !crypto.timingSafeEqual(actual, expectedBuffer)) {
+          this.integrityFailure = true;
+        }
+      } else if (data.schemaVersion === 1 || data.schemaVersion === 2) {
+        this.needsMigration = true;
+      } else {
+        this.integrityFailure = true;
+      }
     } catch (error) {
-      console.error('Unable to load lock state:', error.message);
-      this.states = {};
+      console.error('Unable to load or verify lock state:', error.message);
+      this.integrityFailure = true;
     }
   }
 
   save() {
+    if (!this.integrityKey) {
+      this.integrityKey = this.getIntegrityKey();
+    }
+    const protectedKey = safeStorage.encryptString(this.integrityKey.toString('base64')).toString('base64');
+    const digest = crypto.createHmac('sha256', this.integrityKey)
+      .update(this.canonicalStates(this.states))
+      .digest('base64');
     utils.atomicWriteFileSync(this.filePath, JSON.stringify({
-      schemaVersion: 2,
-      profiles: this.states
+      schemaVersion: 3,
+      profiles: this.states,
+      integrity: { algorithm: 'hmac-sha256', protectedKey, digest }
     }, null, 2));
+    this.integrityFailure = false;
+    this.needsMigration = false;
   }
 
   getRecord(profileId) {
@@ -77,6 +131,7 @@ class LockManager {
   }
 
   setState(profileId, status) {
+    if (this.integrityFailure) throw new LockError('LOCK_INTEGRITY', 'Lock state integrity verification failed.');
     if (!Object.values(STATES).includes(status)) throw new LockError('LOCK_CONFIG', 'Invalid lock state.');
     const current = this.getRecord(profileId);
     this.states[profileId] = {

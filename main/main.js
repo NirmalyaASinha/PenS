@@ -775,6 +775,7 @@ if (!gotTheLock) {
 
 
 app.whenReady().then(() => {
+  lockManager.initialize();
   app.setAppUserModelId('com.nirmalyasinha.pens');
   setupPensProtocol(session.defaultSession);
   if (!protocol.isProtocolHandled('pens')) {
