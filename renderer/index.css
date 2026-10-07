@@ -908,7 +908,11 @@ webview {
   justify-content: space-between;
   border-bottom: 1px solid #f1f3f4;
   color: #3c4043;
+  cursor: move;
+  touch-action: none;
 }
+.fp-header-actions, .fp-header-actions button { cursor: pointer; }
+.fp-opacity-row { margin-top: 12px; }
 
 .fp-header-title {
   display: flex;

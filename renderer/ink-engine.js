@@ -26,6 +26,7 @@ class InkEngine {
     
     this.strokes = []; this.undoneStrokes = []; this.currentStroke = null;
     this.color = '#1a73e8'; this.lineWidth = 2.5;
+    this.opacity = 1;
     this.isEraser = false; this.mode = 'browse';
     this.isPanning = false; this.panStart = { x: 0, y: 0 };
     this.spaceDown = false;
@@ -89,7 +90,7 @@ class InkEngine {
       this.eraseAt(pos); this.isErasingNow = true;
     } else {
       this.isErasingNow = false;
-      this.currentStroke = { tool: this.tool || 'pen', color: this.color, width: this.lineWidth, points: [[pos.x, pos.y, pos.pressure]] };
+      this.currentStroke = { tool: this.tool || 'pen', color: this.color, opacity: this.opacity, width: this.lineWidth, points: [[pos.x, pos.y, pos.pressure]] };
       this.undoneStrokes = [];
     }
   }
@@ -153,10 +154,10 @@ class InkEngine {
 
     if (stroke.tool === 'highlighter') {
       ctx.globalCompositeOperation = 'multiply';
-      ctx.globalAlpha = 0.5;
+      ctx.globalAlpha = 0.5 * (stroke.opacity ?? 1);
     } else {
       ctx.globalCompositeOperation = 'source-over';
-      ctx.globalAlpha = 1.0;
+      ctx.globalAlpha = stroke.opacity ?? 1;
     }
 
     for (let i = 1; i < stroke.points.length; i++) {

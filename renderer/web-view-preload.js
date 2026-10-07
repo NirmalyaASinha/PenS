@@ -35,7 +35,7 @@ ipcRenderer.on('fill-personal-details', (_event, details) => {
 let canvas, activeCanvas, ctx, activeCtx;
 let strokes = [], undoneStrokes = [], currentStroke = null;
 let mode = 'browse', isEraser = false;
-let color = '#1a73e8', lineWidth = 2.5;
+let color = '#1a73e8', lineWidth = 2.5, opacity = 1;
 
 let isPanning = false, panStart = { x: 0, y: 0 };
 let spaceDown = false;
@@ -121,7 +121,7 @@ function onPointerDown(e) {
     eraseAt(pos); activeCanvas.isErasingNow = true;
   } else {
     activeCanvas.isErasingNow = false;
-    currentStroke = { tool: currentTool, color, width: lineWidth, points: [[pos.x, pos.y, pos.pressure]] };
+    currentStroke = { tool: currentTool, color, opacity, width: lineWidth, points: [[pos.x, pos.y, pos.pressure]] };
     undoneStrokes = [];
   }
 }
@@ -176,10 +176,10 @@ function drawStroke(targetCtx, stroke) {
   if (stroke.tool === 'highlighter') {
     // Convert hex to rgba for highlighter, or use multiply
     targetCtx.globalCompositeOperation = 'multiply';
-    targetCtx.globalAlpha = 0.5;
+    targetCtx.globalAlpha = 0.5 * (stroke.opacity ?? 1);
   } else {
     targetCtx.globalCompositeOperation = 'source-over';
-    targetCtx.globalAlpha = 1.0;
+    targetCtx.globalAlpha = stroke.opacity ?? 1;
   }
 
   for (let i = 1; i < stroke.points.length; i++) {
@@ -231,6 +231,6 @@ ipcRenderer.on('undo', () => { if (strokes.length > 0) { undoneStrokes.push(stro
 ipcRenderer.on('redo', () => { if (undoneStrokes.length > 0) { strokes.push(undoneStrokes.pop()); render(); autoSave(); } });
 ipcRenderer.on('clear-strokes', () => { if (strokes.length > 0) { undoneStrokes = [...strokes]; strokes = []; render(); autoSave(); } });
 ipcRenderer.on('load-strokes', (e, data) => { if (data && data.strokes) { strokes = data.strokes; render(); } });
-ipcRenderer.on('set-style', (e, style) => { color = style.color; lineWidth = style.size; currentTool = style.tool || 'pen'; updateCursor(); });
+ipcRenderer.on('set-style', (e, style) => { color = style.color; lineWidth = style.size; opacity = style.opacity ?? 1; currentTool = style.tool || 'pen'; updateCursor(); });
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initCanvas); else initCanvas();

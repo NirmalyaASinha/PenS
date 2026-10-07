@@ -1725,6 +1725,7 @@ if (window.electronAPI && window.electronAPI.onReloadActiveTab) {
 // --- Floating Palette & Side Dock Logic ---
 let currentColor = '#1a73e8';
 let currentSize = 2.5;
+let currentOpacity = 1;
 
 const paletteDock = document.getElementById('palette-dock');
 const fpToggleBtn = document.getElementById('fp-toggle-btn');
@@ -1735,10 +1736,51 @@ const fpColorBadge = document.getElementById('fp-color-badge');
 const fpSizeVal = document.getElementById('fp-size-val');
 const swatches = document.querySelectorAll('.color-swatch');
 const fpSize = document.getElementById('fp-size');
+const fpOpacity = document.getElementById('fp-opacity');
+const fpOpacityVal = document.getElementById('fp-opacity-val');
 
 let isPalettePinned = false;
 let isPaletteExpanded = false;
 let paletteHoverTimer = null;
+
+try {
+  const savedPosition = JSON.parse(localStorage.getItem('pens.palettePosition') || 'null');
+  if (savedPosition && Number.isFinite(savedPosition.left) && Number.isFinite(savedPosition.top)) {
+    paletteDock.style.left = `${savedPosition.left}px`;
+    paletteDock.style.top = `${savedPosition.top}px`;
+    paletteDock.style.right = 'auto';
+  }
+} catch (error) {
+  console.warn('Unable to restore ink palette position:', error);
+}
+
+if (fp) {
+  let dragState = null;
+  const header = document.getElementById('fp-header');
+  header?.addEventListener('pointerdown', (event) => {
+    if (event.target.closest('button')) return;
+    const rect = paletteDock.getBoundingClientRect();
+    dragState = { pointerId: event.pointerId, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
+    header.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  });
+  header?.addEventListener('pointermove', (event) => {
+    if (!dragState || event.pointerId !== dragState.pointerId) return;
+    const left = Math.max(8, Math.min(window.innerWidth - paletteDock.offsetWidth - 8, event.clientX - dragState.offsetX));
+    const top = Math.max(8, Math.min(window.innerHeight - 52, event.clientY - dragState.offsetY));
+    paletteDock.style.left = `${left}px`;
+    paletteDock.style.top = `${top}px`;
+    paletteDock.style.right = 'auto';
+  });
+  header?.addEventListener('pointerup', () => {
+    if (!dragState) return;
+    localStorage.setItem('pens.palettePosition', JSON.stringify({
+      left: paletteDock.getBoundingClientRect().left,
+      top: paletteDock.getBoundingClientRect().top
+    }));
+    dragState = null;
+  });
+}
 
 function expandPalette() {
   isPaletteExpanded = true;
@@ -1855,11 +1897,12 @@ function broadcastStyle() {
   const tab = getActiveTab();
   if (!tab) return;
   
-  const stylePayload = { color: currentColor, size: currentSize, tool: currentTool };
+  const stylePayload = { color: currentColor, size: currentSize, opacity: currentOpacity, tool: currentTool };
   if (tab.pdfViewer) {
     tab.pdfViewer.engines.forEach(eng => { 
       eng.color = currentColor; 
       eng.lineWidth = currentSize; 
+      eng.opacity = currentOpacity;
       eng.tool = currentTool;
       eng.updateCursor(); 
     });
@@ -1891,6 +1934,14 @@ if (fpSize) {
   fpSize.addEventListener('input', (e) => {
     currentSize = parseFloat(e.target.value);
     updateSizeDisplay(currentSize);
+    broadcastStyle();
+  });
+}
+
+if (fpOpacity) {
+  fpOpacity.addEventListener('input', (event) => {
+    currentOpacity = Number(event.target.value) / 100;
+    if (fpOpacityVal) fpOpacityVal.textContent = `${event.target.value}%`;
     broadcastStyle();
   });
 }
