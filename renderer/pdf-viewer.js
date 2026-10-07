@@ -15,7 +15,8 @@ class PDFViewer {
     this.renderTimers = new Map();
     this.intersectionObserver = null;
     this.destroyed = false;
-    this.active = false;
+    this.active = true;
+    this.loadingTask = null;
 
     this.container.style.overflowY = 'auto';
     this.container.style.backgroundColor = '#525659';
@@ -52,7 +53,9 @@ class PDFViewer {
       while (!window.pdfjsLib && attempts++ < 50) await new Promise(resolve => setTimeout(resolve, 100));
       if (!window.pdfjsLib) throw new Error('PDF.js library is not ready or failed to load.');
       const loadingTask = window.pdfjsLib.getDocument(docInitParams);
+      this.loadingTask = loadingTask;
       this.pdfDoc = await loadingTask.promise;
+      this.loadingTask = null;
       if (generation !== this.renderGeneration) return;
 
       this.pages.clear();
@@ -82,7 +85,9 @@ class PDFViewer {
 
   async createPagePlaceholders() {
     for (let pageNum = 1; pageNum <= this.pdfDoc.numPages; pageNum++) {
+      if (this.destroyed || !this.active) return;
       const page = await this.pdfDoc.getPage(pageNum);
+      if (this.destroyed || !this.active) return;
       const baseViewport = page.getViewport({ scale: this.scale });
       const pageContainer = document.createElement('div');
       pageContainer.dataset.pageNumber = String(pageNum);
@@ -166,13 +171,25 @@ class PDFViewer {
     canvas.style.display = 'block';
     if (!canvas.parentNode) record.container.appendChild(canvas);
     const context = canvas.getContext('2d', { alpha: false });
+    if (!context) throw new Error('Unable to create a PDF canvas context.');
     const renderTask = record.page.render({
       canvasContext: context,
       viewport,
       transform: outputScale === 1 ? null : [outputScale, 0, 0, outputScale, 0, 0]
     });
     record.renderTask = renderTask;
-    await renderTask.promise;
+    try {
+      await renderTask.promise;
+    } catch (error) {
+      canvas.remove();
+      record.renderTask = null;
+      record.renderedScale = 0;
+      if (error?.name === 'RenderingCancelledException') throw error;
+      const failure = this.message(`Unable to render page ${pageNum}: ${error.message}`, true);
+      failure.className = 'pdf-render-error';
+      record.container.appendChild(failure);
+      throw error;
+    }
     if (generation !== this.renderGeneration) return;
     record.renderTask = null;
     record.renderedScale = this.scale;
@@ -327,6 +344,8 @@ class PDFViewer {
     if (this.destroyed) return;
     this.active = false;
     this.renderGeneration++;
+    this.loadingTask?.destroy?.();
+    this.loadingTask = null;
     clearTimeout(this.zoomTimer);
     this.cancelRenders();
     this.intersectionObserver?.disconnect();
@@ -336,11 +355,18 @@ class PDFViewer {
       record.container.querySelector('.textLayer')?.remove();
       record.renderedScale = 0;
     });
+    this.pdfDoc?.cleanup?.();
   }
 
   resume() {
-    if (this.destroyed || !this.pdfDoc) return;
+    if (this.destroyed) return;
     this.active = true;
+    if (!this.pdfDoc || this.pages.size === 0) {
+      this.pdfDoc?.destroy?.();
+      this.pdfDoc = null;
+      this.ready = this.loadPDF();
+      return;
+    }
     this.renderGeneration++;
     this.intersectionObserver = new IntersectionObserver(() => this.renderVisiblePages(), {
       root: this.container,

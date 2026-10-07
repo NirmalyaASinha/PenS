@@ -38,6 +38,7 @@ Updated: 2026-10-07
 - Hardened the content viewport and active-tab hit testing so inactive PDF/webview surfaces cannot cover Settings with a black compositor region or intercept field input.
 - Fixed the multi-PDF inactive-tab render race: PDFs that finish loading while hidden now refresh visible-page rendering when their tab is activated, and stale canvases are always removed during page release.
 - Prevented cumulative PDF canvas memory pressure across many tabs by rendering only the active PDF and releasing hidden tabs' canvases and text layers until selected again.
+- Added PDF.js cleanup for hidden documents and an explicit per-page render error surface so resource failures no longer appear as an unexplained black page.
 - Fixed the live Home Focus button binding; it now opens the dedicated Focus tab instead of relying on the inactive legacy loader.
 - Compacted the Home news panel into bounded two-column lists and added a visible, persisted topic filter with Save filter and reload controls.
 - Updated README and release documentation for current कलम features and artifacts; large Windows executables are tracked with Git LFS because GitHub rejects ordinary blobs over 100 MB.
