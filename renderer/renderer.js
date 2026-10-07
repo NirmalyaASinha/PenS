@@ -1895,7 +1895,7 @@ function activateTab(tabId) {
         addressBar.value = (tab.webview && tab.webview.getURL) ? (tab.webview.getURL() || tab.url) : tab.url;
       }
       if (tab.pdfViewer) {
-        tab.pdfViewer.activate();
+        tab.pdfViewer.setActive(true);
         tab.pdfViewer.setMode(window.effectiveMode);
         tab.pdfViewer.setEraser(window.isEraser);
       }
@@ -1904,6 +1904,7 @@ function activateTab(tabId) {
       tab.el.classList.remove('active');
       tab.viewEl.classList.remove('active');
       if (tab.webview) tab.webview.style.pointerEvents = 'none';
+      if (tab.pdfViewer) tab.pdfViewer.setActive(false);
     }
   });
   const isPdf = Boolean(getActiveTab() && getActiveTab().pdfViewer);
@@ -2137,7 +2138,7 @@ if (window.electronAPI && window.electronAPI.onProfileLocked) {
 }
 if (window.electronAPI && window.electronAPI.onProfileUnlocked) {
   window.electronAPI.onProfileUnlocked(() => {
-    tabs.forEach(tab => tab.pdfViewer?.resume());
+    tabs.forEach(tab => tab.pdfViewer?.setActive(tab.id === activeTabId));
   });
 }
 

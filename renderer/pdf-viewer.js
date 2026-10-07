@@ -15,6 +15,7 @@ class PDFViewer {
     this.renderTimers = new Map();
     this.intersectionObserver = null;
     this.destroyed = false;
+    this.active = false;
 
     this.container.style.overflowY = 'auto';
     this.container.style.backgroundColor = '#525659';
@@ -99,7 +100,7 @@ class PDFViewer {
   }
 
   renderVisiblePages() {
-    if (this.destroyed || !this.pdfDoc) return;
+    if (this.destroyed || !this.pdfDoc || !this.active) return;
     const viewTop = this.container.scrollTop;
     const viewBottom = viewTop + this.container.clientHeight;
     this.pages.forEach((record, pageNum) => {
@@ -324,15 +325,22 @@ class PDFViewer {
 
   suspend() {
     if (this.destroyed) return;
+    this.active = false;
     this.renderGeneration++;
     clearTimeout(this.zoomTimer);
     this.cancelRenders();
     this.intersectionObserver?.disconnect();
     this.intersectionObserver = null;
+    this.pages.forEach(record => {
+      record.container.querySelector('.pdf-render-canvas')?.remove();
+      record.container.querySelector('.textLayer')?.remove();
+      record.renderedScale = 0;
+    });
   }
 
   resume() {
     if (this.destroyed || !this.pdfDoc) return;
+    this.active = true;
     this.renderGeneration++;
     this.intersectionObserver = new IntersectionObserver(() => this.renderVisiblePages(), {
       root: this.container,
@@ -340,6 +348,11 @@ class PDFViewer {
     });
     this.pages.forEach(record => this.intersectionObserver.observe(record.container));
     this.renderVisiblePages();
+  }
+
+  setActive(active) {
+    if (active) this.resume();
+    else this.suspend();
   }
 
   destroy() {
