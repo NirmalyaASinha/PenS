@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),
   getLockState: () => ipcRenderer.invoke('lock:state'),
   lockProfile: () => ipcRenderer.invoke('lock:lock'),
+  unlockProfile: () => ipcRenderer.invoke('lock:unlock'),
   fetchHomeFeed: (topic, kind) => ipcRenderer.invoke('home:fetch-feed', topic, kind),
   onSettingsLoaded: (callback) => ipcRenderer.on('settings-loaded', (e, settings) => callback(settings)),
 

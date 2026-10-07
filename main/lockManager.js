@@ -4,9 +4,7 @@ const utils = require('./utils');
 
 const STATES = Object.freeze({
   UNLOCKED: 'Unlocked',
-  LOCKED: 'Locked',
-  UNLOCKING: 'Unlocking',
-  LOCKED_OUT: 'LockedOut'
+  LOCKED: 'Locked'
 });
 
 class LockManager {
@@ -56,11 +54,15 @@ class LockManager {
   }
 
   isLocked(profileId) {
-    return [STATES.LOCKED, STATES.UNLOCKING, STATES.LOCKED_OUT].includes(this.getState(profileId).status);
+    return this.getState(profileId).status === STATES.LOCKED;
   }
 
   lock(profileId) {
     return this.setState(profileId, STATES.LOCKED);
+  }
+
+  unlock(profileId) {
+    return this.setState(profileId, STATES.UNLOCKED);
   }
 
   status(profileId) {

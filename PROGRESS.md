@@ -13,7 +13,7 @@ Updated: 2026-10-07
 - Added a draggable, persistent floating ink palette with pinning and opacity control.
 - Added topic-based Home News and Jobs & Internships feeds with saved per-profile topics and automatic loading.
 - Applied `LOGO.png` to the packaged app icon, window icon, and renderer favicon.
-- Added the initial persisted main-process lock-state foundation and central IPC locked-profile guard.
+- Added the persisted two-state main-process lock foundation (`Unlocked`/`Locked`), central locked-profile IPC guard, and temporary renderer test commands (`electronAPI.lockProfile()` / `electronAPI.unlockProfile()`).
 - Rebuilt the unsigned RC installer and portable artifact after the latest changes.
 
 ## Current release status
@@ -22,7 +22,7 @@ Updated: 2026-10-07
 - Electron: `33.4.11`
 - electron-builder: `25.1.8`
 - App ID: `com.nirmalyasinha.pens`
-- Latest commit: `7333308`
+- Latest commit: pending
 - Build artifacts are unsigned because no Authenticode certificate is configured.
 
 ## Remaining release blockers

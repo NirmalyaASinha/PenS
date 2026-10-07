@@ -92,7 +92,7 @@ function secureHandle(channel, schema, handler) {
   ipcMain.handle(channel, async (e, ...args) => {
     try {
       const profileId = getProfileIdFromEvent(e);
-      if (!['lock:state', 'lock:lock'].includes(channel) && lockManager.isLocked(profileId)) {
+      if (!['lock:state', 'lock:lock', 'lock:unlock'].includes(channel) && lockManager.isLocked(profileId)) {
         throw new Error('Profile is locked');
       }
       if (['privacy:clear-data', 'sync:export', 'passwords:get'].includes(channel)) {
@@ -105,6 +105,7 @@ function secureHandle(channel, schema, handler) {
       if (schema) validatedArgs = schema.parse(args);
       return await handler(e, profileId, ...validatedArgs);
     } catch (err) {
+      if (err.message === 'Profile is locked') throw new Error('Profile is locked');
       console.error(`IPC Validation Error on ${channel}:`, err.message);
       return { error: 'Validation failed' };
     }
@@ -113,6 +114,7 @@ function secureHandle(channel, schema, handler) {
 
 secureHandle('lock:state', null, async (e, profileId) => lockManager.status(profileId));
 secureHandle('lock:lock', null, async (e, profileId) => lockManager.lock(profileId));
+secureHandle('lock:unlock', null, async (e, profileId) => lockManager.unlock(profileId));
 
 function handlePensRequest(request) {
   const url = new URL(request.url);
