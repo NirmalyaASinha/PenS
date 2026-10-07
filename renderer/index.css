@@ -67,7 +67,11 @@
   background: var(--bg-color) !important;
   color: var(--text-color);
   min-height: 100%;
+  height: 100%;
+  box-sizing: border-box;
   overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
   font-family: Inter, "Segoe UI", sans-serif;
 }
 
@@ -75,6 +79,7 @@
   width: min(1120px, calc(100% - 64px));
   margin: 0 auto;
   padding: 40px 0 64px;
+  box-sizing: border-box;
 }
 .settings-heading { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
 .settings-heading h1 { margin: 0 0 6px; font-size: 30px; letter-spacing: -.3px; }
@@ -84,7 +89,7 @@
 .settings-nav { position: sticky; top: 20px; display: grid; gap: 4px; }
 .settings-nav a { color: var(--muted-text); padding: 10px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; }
 .settings-nav a:hover { background: var(--hover-bg); color: var(--text-color); }
-.settings-content { display: grid; gap: 16px; }
+.settings-content { display: grid; gap: 16px; min-width: 0; }
 .settings-card { background: var(--surface); border: 1px solid var(--border-color); border-radius: 14px; padding: 24px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
 .settings-card h2 { margin: 0 0 6px; font-size: 19px; }
 .settings-card label:not(.settings-toggle) { display: block; margin: 20px 0 7px; font-size: 13px; font-weight: 600; }
@@ -166,10 +171,14 @@
 }
 
 .identity-settings {
-  max-width: 600px;
-  margin-bottom: 32px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--border-color);
+  max-width: none;
+  margin: 0 0 16px;
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  box-sizing: border-box;
 }
 
 .identity-settings h2,
@@ -181,6 +190,11 @@
   display: grid;
   gap: 10px;
 }
+.identity-settings h2 { margin: 0 0 6px; font-size: 19px; }
+.identity-settings h3 { margin: 20px 0 8px; font-size: 15px; }
+.identity-settings input,
+.identity-settings textarea { width: 100%; box-sizing: border-box; min-height: 42px; padding: 9px 12px; }
+.identity-settings textarea { min-height: 84px; resize: vertical; }
 
 .identity-form input[type="text"],
 .identity-form input[type="file"],
