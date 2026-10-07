@@ -27,6 +27,7 @@ Updated: 2026-10-07
 - Improved PDF performance with nearby-page virtualization, cancellable visible-page rendering, transform-based zoom feedback, capped raster scale, visible text layers, packaged PDF.js worker resolution, and a persisted Performance mode.
 - Confirmed no GPU-disabling command-line flags are configured; the main process logs Electron GPU feature status at startup for machine-specific reporting.
 - Clarified Snap behavior: it now gives a direct message outside web pages, validates the selected webview belongs to the active profile, and logs complete Chromium GPU information when available.
+- Corrected Home layout overrides so bookmarks and the adjacent Home content keep a consistent 40/60 alignment at smaller window widths.
 - Compacted the Home news panel into bounded two-column lists and added a visible, persisted topic filter with Save filter and reload controls.
 - Enabled usable profile-lock controls in Settings for creating, changing, and removing a PIN/password, with one-time recovery-key display; Windows Hello remains explicitly unavailable until native integration exists.
 - Replaced the About placeholder notice with a feature overview covering browsing, PDF markup, ink, organization, protection, and feeds.

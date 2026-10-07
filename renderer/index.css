@@ -109,6 +109,13 @@
 .settings-status { display: flex; justify-content: space-between; padding: 12px 0; border-top: 1px solid var(--border-color); font-size: 13px; }
 .settings-status strong { color: var(--muted-text); font-weight: 500; }
 .home-feed-panel { margin-top: 28px; padding: 18px; background: var(--surface); border: 1px solid var(--border-color); border-radius: 14px; max-width: 760px; }
+.home-container { min-width: 0; overflow: hidden; }
+.home-left, .home-right { box-sizing: border-box; min-width: 0; }
+.home-left { flex: 0 0 40% !important; overflow-y: auto; overflow-x: hidden; }
+.home-right { flex: 1 1 60% !important; }
+.home-left > h3 { margin: 28px 0 0; }
+.home-bookmarks-grid { align-items: start; justify-items: start; }
+.home-bookmark-item { width: 80px; justify-self: start; }
 .home-feed-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
 .home-feed-header h3 { margin: 0 0 4px; color: var(--text-color); }
 .home-feed-header p { margin: 0; color: var(--muted-text); font-size: 12px; }
@@ -125,7 +132,19 @@
 .home-feed-load { margin-top: 8px; width: 100%; font-size: 12px; }
 .home-feed-item strong { font-size: 13px; line-height: 1.35; }
 .home-feed-item small, .home-feed-empty { color: var(--muted-text); font-size: 11px; margin: 0; }
+@media (max-width: 900px) {
+  .home-left { flex-basis: 44% !important; }
+  .home-right { flex-basis: 56% !important; }
+}
+
 @media (max-width: 700px) {
+  .home-container { display: block !important; overflow-y: auto; }
+  .home-left, .home-right { width: 100%; min-height: auto; }
+  .home-left { border-right: 0 !important; border-bottom: 1px solid var(--border-color); }
+  .home-right { overflow: visible !important; }
+}
+
+@media (max-width: 900px) {
   .home-feed-controls, .home-feed-columns { grid-template-columns: 1fr; display: grid; }
   .home-feed-topic-label { white-space: normal; }
 }
@@ -358,7 +377,7 @@ body {
 }
 
 .home-left {
-  flex: 0 0 min(38%, 430px) !important;
+  flex: 0 0 40% !important;
   background: var(--surface) !important;
   border-right: 1px solid var(--border-color) !important;
 }
@@ -919,8 +938,8 @@ webview {
 }
 
 @media (max-width: 900px) {
-  .home-left { flex-basis: 34% !important; padding: 24px !important; }
-  .home-right { padding: 24px !important; }
+  .home-left { flex-basis: 40% !important; padding: 24px !important; }
+  .home-right { flex-basis: 60% !important; padding: 24px !important; }
   #toolbar { gap: 6px; padding-inline: 8px; }
   .address-bar-container { min-width: 160px; }
 }
