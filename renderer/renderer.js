@@ -18,6 +18,14 @@ const btnHighlighter = document.getElementById('btn-highlighter');
 const btnEraser = document.getElementById('btn-eraser');
 const effectiveModeIndicator = document.getElementById('effective-mode-indicator');
 
+function reportActivity(active = false, durationMs = 1800) {
+  window.electronAPI?.reportActivity?.({ active, durationMs }).catch(() => {});
+}
+
+document.addEventListener('keydown', () => reportActivity(true), true);
+document.addEventListener('pointerdown', () => reportActivity(true), true);
+document.addEventListener('pointerup', () => reportActivity(false), true);
+
 let tabs = [];
 let activeTabId = null;
 let tabCounter = 0;
@@ -1304,7 +1312,7 @@ function createTab(url = 'pens://home') {
           </header>
           <div class="settings-layout">
             <nav class="settings-nav" aria-label="Settings sections">
-              <a href="#appearance">Appearance</a><a href="#privacy">Privacy</a><a href="#data">Data & backup</a><a href="#passwords">Passwords</a><a href="#about">About PenS</a>
+              <a href="#appearance">Appearance</a><a href="#privacy">Privacy</a><a href="#lock">Lock</a><a href="#data">Data & backup</a><a href="#passwords">Passwords</a><a href="#about">About PenS</a>
             </nav>
             <main class="settings-content">
               <section class="settings-card" id="appearance"><h2>Appearance</h2><p class="settings-help">Choose how PenS looks across this profile.</p>
@@ -1314,6 +1322,15 @@ function createTab(url = 'pens://home') {
               <section class="settings-card" id="privacy"><h2>Privacy and Shields</h2><p class="settings-help">Block known trackers and clear browsing data for this profile.</p>
                 <label class="settings-toggle"><input type="checkbox" id="setting-shields-${tabId}"><span><strong>Enable Shields</strong><small>Blocks known trackers where supported.</small></span></label>
                 <div class="settings-actions"><button id="btn-clear-data-${tabId}" class="settings-danger">Clear cache and cookies</button></div>
+              </section>
+              <section class="settings-card" id="lock"><h2>Automatic locking</h2><p class="settings-help">Automatic locking requires a configured PIN or password. PenS never locks during active typing or drawing.</p>
+                <label for="setting-lock-idle-${tabId}">Lock after inactivity</label>
+                <select id="setting-lock-idle-${tabId}">
+                  <option value="0">Never</option><option value="1">1 minute</option><option value="5">5 minutes</option><option value="10">10 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option>
+                </select>
+                <label class="settings-toggle"><input type="checkbox" id="setting-lock-minimize-${tabId}"><span><strong>Lock when minimized</strong><small>Locks after this profile window is minimized.</small></span></label>
+                <label class="settings-toggle"><input type="checkbox" id="setting-lock-system-${tabId}"><span><strong>Lock on Windows lock or sleep</strong><small>Locks when Windows is locked or the device enters sleep.</small></span></label>
+                <label class="settings-toggle"><input type="checkbox" id="setting-lock-startup-${tabId}"><span><strong>Lock when PenS starts</strong><small>Locks this profile at the next app start.</small></span></label>
               </section>
               <section class="settings-card" id="data"><h2>Data and backup</h2><p class="settings-help">Export a portable copy of this profile. Keep backups in a trusted location.</p>
                 <div class="settings-actions"><button id="btn-export-profile-${tabId}" class="settings-secondary">Export profile (.penprofile)</button></div>
@@ -1340,11 +1357,19 @@ function createTab(url = 'pens://home') {
         const settings = await window.electronAPI.getSettings();
         document.getElementById(`setting-theme-${tabId}`).value = settings.theme || 'system';
         document.getElementById(`setting-shields-${tabId}`).checked = settings.shieldsEnabled !== false;
+        document.getElementById(`setting-lock-idle-${tabId}`).value = String(settings.lockIdleMinutes || 0);
+        document.getElementById(`setting-lock-minimize-${tabId}`).checked = settings.lockOnMinimize === true;
+        document.getElementById(`setting-lock-system-${tabId}`).checked = settings.lockOnSystemLock === true;
+        document.getElementById(`setting-lock-startup-${tabId}`).checked = settings.lockOnStartup === true;
 
         document.getElementById(`btn-save-settings-${tabId}`).onclick = async () => {
           const newSettings = {
             theme: document.getElementById(`setting-theme-${tabId}`).value,
-            shieldsEnabled: document.getElementById(`setting-shields-${tabId}`).checked
+            shieldsEnabled: document.getElementById(`setting-shields-${tabId}`).checked,
+            lockIdleMinutes: Number(document.getElementById(`setting-lock-idle-${tabId}`).value),
+            lockOnMinimize: document.getElementById(`setting-lock-minimize-${tabId}`).checked,
+            lockOnSystemLock: document.getElementById(`setting-lock-system-${tabId}`).checked,
+            lockOnStartup: document.getElementById(`setting-lock-startup-${tabId}`).checked
           };
           await window.electronAPI.saveSettings(newSettings);
           applyTheme(newSettings.theme);
@@ -1493,8 +1518,10 @@ function setupWebview(tabObj, url) {
       window.electronAPI.saveNotes(urlId, data);
     } else if (e.channel === 'pointer-activity') {
       window.handlePointerActivity(e.args[0]);
+      reportActivity(true, 1800);
     } else if (e.channel === 'pointer-leave') {
       window.handlePointerLeave(e.args[0]);
+      reportActivity(false);
     } else if (e.channel === 'personal-details-request') {
       const request = e.args[0] || {};
       let requestUrl;

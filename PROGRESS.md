@@ -16,6 +16,7 @@ Updated: 2026-10-07
 - Added the persisted two-state main-process lock foundation (`Unlocked`/`Locked`), central locked-profile IPC guard, and temporary renderer test commands (`electronAPI.lockProfile()` / `electronAPI.unlockProfile()`).
 - Added main-process PIN/password credentials with scrypt verifiers, random salts, constant-time checks, persisted escalating failed-attempt delays, and credential change/removal checks.
 - Added a trusted internal lock window, toolbar lock button, Ctrl+Shift+L shortcut, hidden profile windows during lock, and credential-verified restoration on unlock.
+- Added profile automatic-lock settings for idle timeout, minimize, Windows lock/sleep, and app startup, with main-process activity protection for typing and drawing.
 - Rebuilt the unsigned RC installer and portable artifact after the latest changes.
 
 ## Current release status
@@ -24,7 +25,7 @@ Updated: 2026-10-07
 - Electron: `33.4.11`
 - electron-builder: `25.1.8`
 - App ID: `com.nirmalyasinha.pens`
-- Latest commit: `fb4fc1d`
+- Latest commit: pending
 - Build artifacts are unsigned because no Authenticode certificate is configured.
 
 ## Remaining release blockers

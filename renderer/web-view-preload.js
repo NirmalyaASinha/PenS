@@ -40,10 +40,16 @@ let color = '#1a73e8', lineWidth = 2.5, opacity = 1;
 let isPanning = false, panStart = { x: 0, y: 0 };
 let spaceDown = false;
 
-window.addEventListener('keydown', (e) => { if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') spaceDown = true; });
+window.addEventListener('keydown', (e) => {
+  ipcRenderer.sendToHost('activity', { active: true, durationMs: 1800 });
+  if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') spaceDown = true;
+});
 window.addEventListener('keyup', (e) => { if (e.code === 'Space') spaceDown = false; });
 window.addEventListener('pointermove', (e) => ipcRenderer.sendToHost('pointer-activity', { type: e.pointerType, pressure: e.pressure, buttons: e.buttons, isMove: true }), true);
-window.addEventListener('pointerdown', (e) => ipcRenderer.sendToHost('pointer-activity', { type: e.pointerType, pressure: e.pressure, buttons: e.buttons, isMove: false }), true);
+window.addEventListener('pointerdown', (e) => {
+  ipcRenderer.sendToHost('activity', { active: true, durationMs: 1800 });
+  ipcRenderer.sendToHost('pointer-activity', { type: e.pointerType, pressure: e.pressure, buttons: e.buttons, isMove: false });
+}, true);
 window.addEventListener('pointerleave', (e) => ipcRenderer.sendToHost('pointer-leave', { type: e.pointerType }), true);
 window.addEventListener('contextmenu', (e) => { if (mode === 'pen' && e.pointerType === 'pen') e.preventDefault(); }, true);
 

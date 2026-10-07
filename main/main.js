@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, dialog, session, protocol, net, shell } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, dialog, session, protocol, net, shell, powerMonitor } = require('electron');
 const path = require('path');
 
 // Disable default application menu to prevent Ctrl+R/F5 from reloading the entire app window
@@ -44,6 +44,8 @@ const { lockManager } = require('./lockManager');
 
 const windowProfiles = new Map();
 const lockWindows = new Map();
+const profileActivity = new Map();
+const idleTimers = new Map();
 
 // Task 4.1: Certificate errors
 const trustedCerts = new Map();
@@ -180,6 +182,56 @@ function lockProfileWindows(profileId) {
   });
   createLockWindow(profileId);
 }
+
+function isProfileActive(profileId) {
+  const activity = profileActivity.get(profileId);
+  return activity && Math.max(activity.activeUntil || 0, activity.lastActivity || 0) > Date.now();
+}
+
+function lockProfileAutomatically(profileId, reason) {
+  if (lockManager.isLocked(profileId) || isProfileActive(profileId)) return false;
+  const settings = settingsManager.load(profileId);
+  if (settings.lockOnStartup && lockManager.status(profileId).credentialConfigured && !lockManager.isLocked(profileId)) {
+    lockManager.lock(profileId);
+  }
+  scheduleIdleLock(profileId);
+  if (!lockManager.status(profileId).credentialConfigured) return false;
+  lockManager.lock(profileId);
+  lockProfileWindows(profileId);
+  console.info(`Profile locked automatically (${reason})`);
+  return true;
+}
+
+function scheduleIdleLock(profileId) {
+  const previous = idleTimers.get(profileId);
+  if (previous) clearTimeout(previous);
+  const settings = settingsManager.load(profileId);
+  const minutes = Number(settings.lockIdleMinutes) || 0;
+  if (minutes <= 0) return;
+  const delay = Math.max(1000, minutes * 60 * 1000);
+  const timer = setTimeout(() => {
+    if (isProfileActive(profileId)) {
+      scheduleIdleLock(profileId);
+      return;
+    }
+    lockProfileAutomatically(profileId, 'idle timeout');
+    scheduleIdleLock(profileId);
+  }, delay);
+  idleTimers.set(profileId, timer);
+}
+
+secureHandle('activity:touch', z.tuple([z.object({
+  active: z.boolean().optional(),
+  durationMs: z.number().int().min(0).max(10000).optional()
+}).optional()]), async (e, profileId, activity = {}) => {
+  const now = Date.now();
+  profileActivity.set(profileId, {
+    lastActivity: now,
+    activeUntil: activity.active ? now + (activity.durationMs || 1500) : now
+  });
+  scheduleIdleLock(profileId);
+  return true;
+});
 
 secureHandle('lock:state', null, async (e, profileId) => lockManager.status(profileId));
 secureHandle('lock:lock', null, async (e, profileId) => {
@@ -371,6 +423,11 @@ function createWindow(profileId = 'default') {
   mainWindow.on('closed', () => {
     windowProfiles.delete(mainWindow.id);
   });
+  mainWindow.on('minimize', () => {
+    if (settings.lockOnMinimize) {
+      setTimeout(() => lockProfileAutomatically(profileId, 'window minimized'), 250);
+    }
+  });
 }
 
 // Dialog & Store IPC
@@ -523,7 +580,11 @@ secureHandle('history:clear', null, async (e, profileId) => historyManager.clear
 
 // Settings IPC
 secureHandle('settings:get', null, async (e, profileId) => settingsManager.load(profileId));
-secureHandle('settings:save', z.tuple([z.any()]), async (e, profileId, settings) => settingsManager.save(profileId, settings));
+secureHandle('settings:save', z.tuple([z.any()]), async (e, profileId, settings) => {
+  const saved = settingsManager.save(profileId, settings);
+  scheduleIdleLock(profileId);
+  return saved;
+});
 secureHandle('home:fetch-feed', z.tuple([z.string().trim().max(120), z.enum(['news', 'jobs'])]), async (e, profileId, topic, kind) => {
   const query = [topic, kind === 'jobs' ? 'jobs internship' : 'news'].filter(Boolean).join(' ');
   const feedUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-IN&gl=IN&ceid=IN:en`;
@@ -644,6 +705,13 @@ app.whenReady().then(() => {
   }
 
   createWindow(profileManager.lastUsed);
+  const handleSystemLock = (reason) => {
+    for (const profileId of new Set(windowProfiles.values())) {
+      if (settingsManager.load(profileId).lockOnSystemLock) lockProfileAutomatically(profileId, reason);
+    }
+  };
+  powerMonitor.on('lock-screen', () => handleSystemLock('Windows lock screen'));
+  powerMonitor.on('suspend', () => handleSystemLock('system suspend'));
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow(profileManager.lastUsed);
   });

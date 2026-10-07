@@ -8,7 +8,11 @@ const defaultSettings = {
   searchEngine: 'https://www.google.com/search?q=%s',
   startupBehavior: 'new-tab',
   defaultZoom: 1.0,
-  shieldsEnabled: true
+  shieldsEnabled: true,
+  lockIdleMinutes: 0,
+  lockOnMinimize: false,
+  lockOnSystemLock: false,
+  lockOnStartup: false
 };
 
 class SettingsManager {
@@ -36,4 +40,3 @@ class SettingsManager {
 }
 
 module.exports = new SettingsManager();
-

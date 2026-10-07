@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Settings
   getSettings: () => ipcRenderer.invoke('settings:get'),
   saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),
+  reportActivity: (activity = {}) => ipcRenderer.invoke('activity:touch', activity),
   getLockState: () => ipcRenderer.invoke('lock:state'),
   lockProfile: () => ipcRenderer.invoke('lock:lock'),
   unlockProfile: (secret) => ipcRenderer.invoke('lock:unlock', secret),
