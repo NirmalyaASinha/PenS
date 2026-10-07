@@ -2135,23 +2135,15 @@ if (window.electronAPI?.getSettings) {
 }
 
 if (btnDownloads) {
-  btnDownloads.addEventListener('click', async () => {
-    try {
-      const downloads = await window.electronAPI.getDownloads();
-      const items = Array.isArray(downloads) ? downloads : [];
-      alert(items.length ? items.map(item => item.filename || item.url || 'Download').join('\n') : 'No downloads yet.');
-    } catch (error) {
-      console.error('Unable to load downloads:', error);
-    }
+  btnDownloads.addEventListener('click', () => createTab('pens://downloads'));
+}
 
-    if (btnLock) {
-      btnLock.addEventListener('click', async () => {
-        try {
-          await window.electronAPI.lockProfile();
-        } catch (error) {
-          alert(error.message || 'Unable to lock this profile.');
-        }
-      });
+if (btnLock) {
+  btnLock.addEventListener('click', async () => {
+    try {
+      await window.electronAPI.lockProfile();
+    } catch (error) {
+      alert(error.message || 'Unable to lock this profile.');
     }
   });
 }
