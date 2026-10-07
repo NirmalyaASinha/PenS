@@ -258,6 +258,12 @@
   width: fit-content;
 }
 
+.lock-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .settings-help {
   color: var(--muted-text) !important;
   font-size: 13px;

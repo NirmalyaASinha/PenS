@@ -1323,7 +1323,16 @@ function createTab(url = 'pens://home') {
                 <label class="settings-toggle"><input type="checkbox" id="setting-shields-${tabId}"><span><strong>Enable Shields</strong><small>Blocks known trackers where supported.</small></span></label>
                 <div class="settings-actions"><button id="btn-clear-data-${tabId}" class="settings-danger">Clear cache and cookies</button></div>
               </section>
-              <section class="settings-card" id="lock"><h2>Automatic locking</h2><p class="settings-help">Automatic locking requires a configured PIN or password. कलम never locks during active typing or drawing.</p>
+              <section class="settings-card" id="lock"><h2>Automatic locking</h2><p class="settings-help">Choose how you will unlock कलम after it locks. You can use a PIN or password now. Windows Hello fingerprint support is not available yet.</p>
+                <div class="lock-settings-form">
+                  <label for="lock-type-${tabId}">Unlock method</label>
+                  <select id="lock-type-${tabId}" aria-label="Lock credential type"><option value="pin">PIN (6+ digits)</option><option value="password">Password (8+ characters)</option></select>
+                  <input id="lock-secret-${tabId}" type="password" placeholder="Enter a new PIN or password" autocomplete="new-password">
+                  <input id="lock-current-${tabId}" type="password" placeholder="Current PIN or password (only when changing/removing)" autocomplete="current-password">
+                  <div class="lock-settings-actions"><button id="btn-set-lock-${tabId}" class="settings-primary-button">Set or change unlock method</button><button id="btn-remove-lock-${tabId}" class="settings-secondary">Remove lock</button></div>
+                  <p id="lock-status-${tabId}" class="settings-help" role="status">Checking lock status...</p>
+                  <p id="lock-settings-status-${tabId}" class="settings-help" role="status"></p>
+                </div>
                 <label for="setting-lock-idle-${tabId}">Lock after inactivity</label>
                 <select id="setting-lock-idle-${tabId}">
                   <option value="0">Never</option><option value="1">1 minute</option><option value="5">5 minutes</option><option value="10">10 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option>
@@ -1339,19 +1348,7 @@ function createTab(url = 'pens://home') {
                 <div id="passwords-list-${tabId}" class="passwords-list">Loading...</div>
                 <div class="password-form"><input type="url" id="add-pass-url-${tabId}" placeholder="https://example.com" aria-label="Site URL"><input type="text" id="add-pass-user-${tabId}" placeholder="Username" aria-label="Username"><input type="password" id="add-pass-pass-${tabId}" placeholder="Password" aria-label="Password"><button id="btn-add-pass-${tabId}" class="settings-primary-button">Add password</button></div>
               </section>
-              <section class="settings-card" id="about"><h2>About कलम</h2><p class="settings-help">कलम browser, notebook, PDF reader and ink workspace.</p>
-                <div class="settings-status"><span>Profile lock</span><strong id="lock-status-${tabId}">Checking...</strong></div>
-                <div class="lock-settings-form">
-                  <select id="lock-type-${tabId}" aria-label="Lock credential type"><option value="pin">PIN (6+ digits)</option><option value="password">Password (8+ characters)</option></select>
-                  <input id="lock-secret-${tabId}" type="password" placeholder="New PIN or password" autocomplete="new-password">
-                  <input id="lock-current-${tabId}" type="password" placeholder="Current credential (if changing)" autocomplete="current-password">
-                  <button id="btn-set-lock-${tabId}" class="settings-primary-button">Set or change lock</button>
-                  <button id="btn-remove-lock-${tabId}" class="settings-secondary">Remove lock</button>
-                  <p id="lock-settings-status-${tabId}" class="settings-help" role="status"></p>
-                </div>
-                <div class="settings-status"><span>Windows Hello</span><strong>Not available yet</strong></div>
-                <p class="settings-help">Windows Hello requires a native Windows credential provider integration; कलम does not claim support until that secure integration is available.</p>
-              </section>
+              <section class="settings-card" id="about"><h2>About कलम</h2><p class="settings-help">कलम browser, notebook, PDF reader and ink workspace.</p><div class="settings-status"><span>Windows Hello fingerprint</span><strong>Not available yet</strong></div><p class="settings-help">Native Windows Hello integration is not available yet, so choose a PIN or password in Automatic locking.</p></section>
             </main>
           </div>
           <div class="settings-footer"><button id="btn-save-settings-${tabId}" class="settings-primary-button">Save settings</button><span id="settings-save-status-${tabId}" role="status"></span></div>
