@@ -1,8 +1,8 @@
 {
   "name": "pens",
-  "productName": "PenS",
+  "productName": "कलम",
   "version": "1.0.0-rc.1",
-  "description": "Digital notebook & pen tablet browser for Windows",
+  "description": "कलम digital notebook, browser, PDF reader and ink workspace for Windows",
   "author": "Nirmalya Sinha",
   "main": "main/main.js",
   "scripts": {
@@ -14,7 +14,7 @@
   },
   "build": {
     "appId": "com.nirmalyasinha.pens",
-    "productName": "PenS",
+    "productName": "कलम",
     "copyright": "Copyright © 2026 Nirmalya Sinha",
     "icon": "LOGO.png",
     "afterPack": "./afterPack.js",
@@ -38,7 +38,7 @@
       "node_modules/**/*"
     ],
     "win": {
-      "executableName": "PenS",
+      "executableName": "कलम",
       "target": [
         {
           "target": "nsis",
@@ -57,7 +57,7 @@
       "requestedExecutionLevel": "asInvoker",
       "verifyUpdateCodeSignature": true,
       "artifactName": "${productName}-Setup-${version}.${ext}",
-      "legalTrademarks": "PenS"
+      "legalTrademarks": "कलम"
     },
     "nsis": {
       "oneClick": false,
@@ -65,8 +65,8 @@
       "allowToChangeInstallationDirectory": true,
       "deleteAppDataOnUninstall": false,
       "guid": "E8F3C92B-4A71-4E1D-9B67-94751A2E8B99",
-      "shortcutName": "PenS",
-      "uninstallDisplayName": "PenS",
+      "shortcutName": "कलम",
+      "uninstallDisplayName": "कलम",
       "runAfterFinish": true,
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },

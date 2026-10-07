@@ -163,7 +163,7 @@ function showProfileWindows(profileId) {
       win.setContentProtection(false);
       win.show();
       win.focus();
-      win.setTitle('PenS');
+      win.setTitle('कलम');
     }
   });
 }
@@ -183,7 +183,7 @@ function createLockWindow(profileId) {
     minWidth: 380,
     minHeight: 460,
     resizable: false,
-    title: 'PenS',
+    title: 'कलम',
     icon: path.join(__dirname, '..', 'LOGO.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -193,7 +193,7 @@ function createLockWindow(profileId) {
     }
   });
   lockWindow.setContentProtection(true);
-  lockWindow.setTitle('PenS');
+  lockWindow.setTitle('कलम');
   lockWindows.set(profileId, lockWindow);
   windowProfiles.set(lockWindow.id, profileId);
   lockWindow.loadURL('pens://app/renderer/lock.html');
@@ -216,7 +216,7 @@ function lockProfileWindows(profileId) {
       win.webContents.send('profile-locked');
       win.setContentProtection(true);
       win.hide();
-      win.setTitle('PenS');
+      win.setTitle('कलम');
     }
   });
   createLockWindow(profileId);
@@ -442,7 +442,7 @@ function createWindow(profileId = 'default') {
     }
   });
   mainWindow.setContentProtection(false);
-  mainWindow.setTitle('PenS');
+  mainWindow.setTitle('कलम');
 
   // Intercept Ctrl+R, F5, Ctrl+Shift+R on the main window so the shell never reloads
   mainWindow.webContents.on('before-input-event', (event, input) => {
@@ -480,7 +480,7 @@ function createWindow(profileId = 'default') {
     mainWindow.webContents.send('settings-loaded', settings);
     if (lockManager.isLocked(profile.id)) {
       mainWindow.setContentProtection(true);
-      mainWindow.setTitle('PenS');
+      mainWindow.setTitle('कलम');
       mainWindow.hide();
       createLockWindow(profile.id);
     }
@@ -694,7 +694,7 @@ secureHandle('sync:export', null, async (e, profileId) => {
     const { canceled, filePath } = await dialog.showSaveDialog(win, {
       title: 'Export Profile',
       defaultPath: 'profile.penprofile',
-      filters: [{ name: 'PenS Profile', extensions: ['penprofile'] }]
+      filters: [{ name: 'कलम Profile', extensions: ['penprofile'] }]
     });
     if (!canceled && filePath) {
       await syncManager.exportProfile(profileId, filePath);

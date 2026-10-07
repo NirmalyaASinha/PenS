@@ -17,7 +17,7 @@ if (publishing) args.push('--config.forceCodeSigning=true');
 
 if (fs.existsSync(distDir)) {
   for (const name of fs.readdirSync(distDir)) {
-    if (/^(?:PenS-(?:Setup|Portable)-.+\.exe(?:\.blockmap)?|latest\.yml|builder-debug\.yml|SHA256SUMS\.txt|SBOM\.cdx\.json)$/i.test(name)) {
+    if (/^(?:.+-(?:Setup|Portable)-.+\.exe(?:\.blockmap)?|latest\.yml|builder-debug\.yml|SHA256SUMS\.txt|SBOM\.cdx\.json)$/i.test(name)) {
       fs.rmSync(path.join(distDir, name), { force: true });
     }
   }
@@ -53,7 +53,7 @@ if (sbom.status !== 0) {
 fs.writeFileSync(sbomPath, sbom.stdout);
 
 const releaseFiles = fs.readdirSync(distDir)
-  .filter((name) => /^(PenS-(Setup|Portable)-.+\.exe|PenS-Setup-.+\.exe\.blockmap|latest\.yml|SBOM\.cdx\.json)$/i.test(name))
+  .filter((name) => /^(.*-(Setup|Portable)-.+\.exe|.*-Setup-.+\.exe\.blockmap|latest\.yml|SBOM\.cdx\.json)$/i.test(name))
   .sort();
 
 const checksums = releaseFiles.map((name) => {

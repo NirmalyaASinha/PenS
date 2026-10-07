@@ -148,9 +148,9 @@ async function addIdentitySettings(tabId, page) {
   const section = document.createElement('section');
   section.className = 'identity-settings';
   const heading = document.createElement('h2');
-  heading.textContent = 'You and PenS';
+  heading.textContent = 'You and कलम';
   const help = document.createElement('p');
-  help.textContent = 'Choose how PenS shows your profile. These details stay with this profile.';
+  help.textContent = 'Choose how कलम shows your profile. These details stay with this profile.';
   help.className = 'settings-help';
   section.append(heading, help);
 
@@ -191,7 +191,7 @@ async function addIdentitySettings(tabId, page) {
   origins.value = (profile.personalDetails?.origins || []).join(', ');
   const detailsHelp = document.createElement('small');
   detailsHelp.className = 'settings-help';
-  detailsHelp.textContent = 'PenS only offers these details after you focus a field, and only on the exact origins listed here.';
+  detailsHelp.textContent = 'कलम only offers these details after you focus a field, and only on the exact origins listed here.';
 
   const avatarLabel = document.createElement('label');
   avatarLabel.textContent = 'Avatar';
@@ -207,7 +207,7 @@ async function addIdentitySettings(tabId, page) {
   avatarFile.setAttribute('aria-label', 'Upload avatar image');
   const avatarStatus = document.createElement('small');
   avatarStatus.className = 'settings-help';
-  avatarStatus.textContent = 'PNG, JPEG, WebP, or GIF up to 5 MB; PenS stores a resized copy.';
+  avatarStatus.textContent = 'PNG, JPEG, WebP, or GIF up to 5 MB; कलम stores a resized copy.';
   let uploadedAvatar = String(profile.avatar || '').startsWith('data:image/') ? profile.avatar : '';
   avatarFile.addEventListener('change', async () => {
     try {
@@ -838,7 +838,7 @@ function createTab(url = 'pens://home') {
           <div class="home-bookmarks">Bookmarks</div>
         </div>
         <div class="home-right">
-          <div class="home-title">Welcome to PenS ! Updated</div>
+          <div class="home-title">Welcome to कलम ! Updated</div>
           <div class="home-subtitle" id="home-subtitle-${tabId}">Hey User</div>
           <div class="home-notes-title">Notebooks</div>
           <div class="notes-grid" id="notes-grid-${tabId}"></div>
@@ -1307,15 +1307,15 @@ function createTab(url = 'pens://home') {
       <div class="settings-page">
         <div class="settings-shell">
           <header class="settings-heading">
-            <div><h1>Settings</h1><p>Manage PenS for this profile.</p></div>
+            <div><h1>Settings</h1><p>Manage कलम for this profile.</p></div>
             <span class="settings-profile-badge">Active profile</span>
           </header>
           <div class="settings-layout">
             <nav class="settings-nav" aria-label="Settings sections">
-              <a href="#appearance">Appearance</a><a href="#privacy">Privacy</a><a href="#lock">Lock</a><a href="#data">Data & backup</a><a href="#passwords">Passwords</a><a href="#about">About PenS</a>
+              <a href="#appearance">Appearance</a><a href="#privacy">Privacy</a><a href="#lock">Lock</a><a href="#data">Data & backup</a><a href="#passwords">Passwords</a><a href="#about">About कलम</a>
             </nav>
             <main class="settings-content">
-              <section class="settings-card" id="appearance"><h2>Appearance</h2><p class="settings-help">Choose how PenS looks across this profile.</p>
+              <section class="settings-card" id="appearance"><h2>Appearance</h2><p class="settings-help">Choose how कलम looks across this profile.</p>
                 <label for="setting-theme-${tabId}">Theme</label>
                 <select id="setting-theme-${tabId}"><option value="system">Use system setting</option><option value="light">Light</option><option value="dark">Dark</option></select>
               </section>
@@ -1323,14 +1323,14 @@ function createTab(url = 'pens://home') {
                 <label class="settings-toggle"><input type="checkbox" id="setting-shields-${tabId}"><span><strong>Enable Shields</strong><small>Blocks known trackers where supported.</small></span></label>
                 <div class="settings-actions"><button id="btn-clear-data-${tabId}" class="settings-danger">Clear cache and cookies</button></div>
               </section>
-              <section class="settings-card" id="lock"><h2>Automatic locking</h2><p class="settings-help">Automatic locking requires a configured PIN or password. PenS never locks during active typing or drawing.</p>
+              <section class="settings-card" id="lock"><h2>Automatic locking</h2><p class="settings-help">Automatic locking requires a configured PIN or password. कलम never locks during active typing or drawing.</p>
                 <label for="setting-lock-idle-${tabId}">Lock after inactivity</label>
                 <select id="setting-lock-idle-${tabId}">
                   <option value="0">Never</option><option value="1">1 minute</option><option value="5">5 minutes</option><option value="10">10 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option>
                 </select>
                 <label class="settings-toggle"><input type="checkbox" id="setting-lock-minimize-${tabId}"><span><strong>Lock when minimized</strong><small>Locks after this profile window is minimized.</small></span></label>
                 <label class="settings-toggle"><input type="checkbox" id="setting-lock-system-${tabId}"><span><strong>Lock on Windows lock or sleep</strong><small>Locks when Windows is locked or the device enters sleep.</small></span></label>
-                <label class="settings-toggle"><input type="checkbox" id="setting-lock-startup-${tabId}"><span><strong>Lock when PenS starts</strong><small>Locks this profile at the next app start.</small></span></label>
+                <label class="settings-toggle"><input type="checkbox" id="setting-lock-startup-${tabId}"><span><strong>Lock when कलम starts</strong><small>Locks this profile at the next app start.</small></span></label>
               </section>
               <section class="settings-card" id="data"><h2>Data and backup</h2><p class="settings-help">Export a portable copy of this profile. Keep backups in a trusted location.</p>
                 <div class="settings-actions"><button id="btn-export-profile-${tabId}" class="settings-secondary">Export profile (.penprofile)</button></div>
@@ -1339,7 +1339,7 @@ function createTab(url = 'pens://home') {
                 <div id="passwords-list-${tabId}" class="passwords-list">Loading...</div>
                 <div class="password-form"><input type="url" id="add-pass-url-${tabId}" placeholder="https://example.com" aria-label="Site URL"><input type="text" id="add-pass-user-${tabId}" placeholder="Username" aria-label="Username"><input type="password" id="add-pass-pass-${tabId}" placeholder="Password" aria-label="Password"><button id="btn-add-pass-${tabId}" class="settings-primary-button">Add password</button></div>
               </section>
-              <section class="settings-card" id="about"><h2>About PenS</h2><p class="settings-help">PenS browser, notebook, PDF reader and ink workspace.</p><div class="settings-status"><span>Profile lock</span><strong>Coming soon</strong></div><div class="settings-status"><span>Windows Hello</span><strong>Coming soon</strong></div></section>
+              <section class="settings-card" id="about"><h2>About कलम</h2><p class="settings-help">कलम browser, notebook, PDF reader and ink workspace.</p><div class="settings-status"><span>Profile lock</span><strong>Coming soon</strong></div><div class="settings-status"><span>Windows Hello</span><strong>Coming soon</strong></div></section>
             </main>
           </div>
           <div class="settings-footer"><button id="btn-save-settings-${tabId}" class="settings-primary-button">Save settings</button><span id="settings-save-status-${tabId}" role="status"></span></div>

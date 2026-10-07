@@ -20,6 +20,7 @@ Updated: 2026-10-07
 - Added locked-window content protection, neutral titles, and notification permission suppression while profiles are locked.
 - Fixed the lock-state tampering bypass with a safeStorage-protected HMAC integrity envelope and fail-closed verification.
 - Added one-time recovery keys (stored as salted digests), two-minute main-process reauthentication, and guards for password reveal, profile export/deletion, and lock changes.
+- Renamed the user-facing project and packaged application to कलम while retaining the stable internal app ID and pens:// protocol.
 - Rebuilt the unsigned RC installer and portable artifact after the latest changes.
 
 ## Current release status
@@ -28,7 +29,7 @@ Updated: 2026-10-07
 - Electron: `33.4.11`
 - electron-builder: `25.1.8`
 - App ID: `com.nirmalyasinha.pens`
-- Latest commit: `140a18a`
+- Latest commit: pending
 - Build artifacts are unsigned because no Authenticode certificate is configured.
 
 ## Remaining release blockers
