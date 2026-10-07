@@ -223,6 +223,7 @@ function createWindow(profileId = 'default') {
       color: profile.color,
       symbolColor: '#ffffff'
     },
+    icon: path.join(__dirname, '..', 'LOGO.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
