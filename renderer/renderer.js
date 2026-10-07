@@ -1161,14 +1161,6 @@ function createTab(url = 'pens://home') {
     const settingsPage = viewContainer.querySelector('.settings-page');
     if (settingsPage) {
       addIdentitySettings(tabId, settingsPage).catch(error => console.error('Unable to load identity settings:', error));
-      const securitySection = document.createElement('section');
-      securitySection.className = 'settings-section';
-      securitySection.innerHTML = `
-        <h2>Profile security</h2>
-        <p class="settings-help">This profile uses PenS's encrypted password vault. Profile lock and Windows Hello are not available in this build yet.</p>
-        <p class="settings-help">Keep your Windows account protected and use a strong vault password. Never share exported profile files.</p>
-      `;
-      settingsPage.insertBefore(securitySection, settingsPage.querySelector('hr'));
     }
 
     setTimeout(async () => {
@@ -1219,9 +1211,6 @@ function createTab(url = 'pens://home') {
     `;
     contentArea.appendChild(viewContainer);
     tabs.push(tabObj);
-    const settingsPage = viewContainer.querySelector('.settings-page');
-    if (settingsPage) addIdentitySettings(tabId, settingsPage).catch(error => console.error('Unable to load identity settings:', error));
-
     setTimeout(async () => {
       const list = document.getElementById(`downloads-list-${tabId}`);
       if (window.electronAPI && window.electronAPI.getDownloads) {
@@ -1255,43 +1244,44 @@ function createTab(url = 'pens://home') {
   } else if (url === 'pens://settings') {
     tabObj.titleEl.textContent = 'Settings';
     viewContainer.innerHTML = `
-      <div class="settings-page" style="padding: 40px; font-family: sans-serif; height: 100%; overflow-y: auto;">
-        <h2>Settings</h2>
-        <div style="max-width: 600px;">
-          <div style="margin-bottom: 20px;">
-            <label style="display: block; font-weight: bold;">Theme (Currently applies to active profile sync)</label>
-            <select id="setting-theme-${tabId}" style="width: 100%; padding: 8px;">
-              <option value="system">System</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
+      <div class="settings-page">
+        <div class="settings-shell">
+          <header class="settings-heading">
+            <div><h1>Settings</h1><p>Manage PenS for this profile.</p></div>
+            <span class="settings-profile-badge">Active profile</span>
+          </header>
+          <div class="settings-layout">
+            <nav class="settings-nav" aria-label="Settings sections">
+              <a href="#appearance">Appearance</a><a href="#privacy">Privacy</a><a href="#data">Data & backup</a><a href="#passwords">Passwords</a><a href="#about">About PenS</a>
+            </nav>
+            <main class="settings-content">
+              <section class="settings-card" id="appearance"><h2>Appearance</h2><p class="settings-help">Choose how PenS looks across this profile.</p>
+                <label for="setting-theme-${tabId}">Theme</label>
+                <select id="setting-theme-${tabId}"><option value="system">Use system setting</option><option value="light">Light</option><option value="dark">Dark</option></select>
+              </section>
+              <section class="settings-card" id="privacy"><h2>Privacy and Shields</h2><p class="settings-help">Block known trackers and clear browsing data for this profile.</p>
+                <label class="settings-toggle"><input type="checkbox" id="setting-shields-${tabId}"><span><strong>Enable Shields</strong><small>Blocks known trackers where supported.</small></span></label>
+                <div class="settings-actions"><button id="btn-clear-data-${tabId}" class="settings-danger">Clear cache and cookies</button></div>
+              </section>
+              <section class="settings-card" id="data"><h2>Data and backup</h2><p class="settings-help">Export a portable copy of this profile. Keep backups in a trusted location.</p>
+                <div class="settings-actions"><button id="btn-export-profile-${tabId}" class="settings-secondary">Export profile (.penprofile)</button></div>
+              </section>
+              <section class="settings-card" id="passwords"><h2>Passwords and autofill</h2><p class="settings-help">Saved passwords are stored encrypted and are never shown in this list.</p>
+                <div id="passwords-list-${tabId}" class="passwords-list">Loading...</div>
+                <div class="password-form"><input type="url" id="add-pass-url-${tabId}" placeholder="https://example.com" aria-label="Site URL"><input type="text" id="add-pass-user-${tabId}" placeholder="Username" aria-label="Username"><input type="password" id="add-pass-pass-${tabId}" placeholder="Password" aria-label="Password"><button id="btn-add-pass-${tabId}" class="settings-primary-button">Add password</button></div>
+              </section>
+              <section class="settings-card" id="about"><h2>About PenS</h2><p class="settings-help">PenS browser, notebook, PDF reader and ink workspace.</p><div class="settings-status"><span>Profile lock</span><strong>Coming soon</strong></div><div class="settings-status"><span>Windows Hello</span><strong>Coming soon</strong></div></section>
+            </main>
           </div>
-          <div style="margin-bottom: 20px;">
-            <label style="display: block; font-weight: bold;">Adblocker / Shields</label>
-            <input type="checkbox" id="setting-shields-${tabId}"> Enable shields (Blocks trackers)
-          </div>
-          <div style="margin-bottom: 20px;">
-            <label style="display: block; font-weight: bold;">Data & Privacy</label>
-            <button id="btn-clear-data-${tabId}" style="padding: 8px; background: #ea4335; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">Clear Cache & Cookies</button>
-            <button id="btn-export-profile-${tabId}" style="padding: 8px; background: #34a853; color: white; border: none; border-radius: 4px; cursor: pointer;">Export Profile (.penprofile)</button>
-          </div>
-          <button id="btn-save-settings-${tabId}" style="padding: 10px 20px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer;">Save Settings</button>
-          
-          <hr style="margin: 40px 0; border: 0; border-top: 1px solid #ddd;">
-          
-          <h2>Saved Passwords</h2>
-          <div id="passwords-list-${tabId}">Loading...</div>
-          <div style="margin-top: 10px;">
-             <input type="text" id="add-pass-url-${tabId}" placeholder="Site URL" style="padding: 6px;">
-             <input type="text" id="add-pass-user-${tabId}" placeholder="Username" style="padding: 6px;">
-             <input type="password" id="add-pass-pass-${tabId}" placeholder="Password" style="padding: 6px;">
-             <button id="btn-add-pass-${tabId}" style="padding: 6px;">Add Password</button>
-          </div>
+          <div class="settings-footer"><button id="btn-save-settings-${tabId}" class="settings-primary-button">Save settings</button><span id="settings-save-status-${tabId}" role="status"></span></div>
         </div>
       </div>
     `;
     contentArea.appendChild(viewContainer);
     tabs.push(tabObj);
+    const settingsPage = viewContainer.querySelector('.settings-page');
+    const settingsContent = settingsPage?.querySelector('.settings-content');
+    if (settingsContent) addIdentitySettings(tabId, settingsContent).catch(error => console.error('Unable to load identity settings:', error));
 
     setTimeout(async () => {
       if (window.electronAPI && window.electronAPI.getSettings) {
