@@ -23,6 +23,7 @@ Updated: 2026-10-07
 - Renamed the user-facing project and packaged application to कलम while retaining the stable internal app ID and pens:// protocol.
 - Added an explicit Windows ICO generated from LOGO.png so packaged executable and shortcut icons cannot fall back to Electron's atom icon.
 - Enabled usable profile-lock controls in Settings for creating, changing, and removing a PIN/password, with one-time recovery-key display; Windows Hello remains explicitly unavailable until native integration exists.
+- Replaced the About placeholder notice with a feature overview covering browsing, PDF markup, ink, organization, protection, and feeds.
 - Rebuilt the unsigned RC installer and portable artifact after the latest changes.
 
 ## Current release status

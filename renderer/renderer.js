@@ -1348,7 +1348,16 @@ function createTab(url = 'pens://home') {
                 <div id="passwords-list-${tabId}" class="passwords-list">Loading...</div>
                 <div class="password-form"><input type="url" id="add-pass-url-${tabId}" placeholder="https://example.com" aria-label="Site URL"><input type="text" id="add-pass-user-${tabId}" placeholder="Username" aria-label="Username"><input type="password" id="add-pass-pass-${tabId}" placeholder="Password" aria-label="Password"><button id="btn-add-pass-${tabId}" class="settings-primary-button">Add password</button></div>
               </section>
-              <section class="settings-card" id="about"><h2>About कलम</h2><p class="settings-help">कलम browser, notebook, PDF reader and ink workspace.</p><div class="settings-status"><span>Windows Hello fingerprint</span><strong>Not available yet</strong></div><p class="settings-help">Native Windows Hello integration is not available yet, so choose a PIN or password in Automatic locking.</p></section>
+              <section class="settings-card" id="about"><h2>About कलम</h2><p class="settings-help">A focused workspace for browsing, reading, writing, and organizing your ideas.</p>
+                <div class="about-feature-grid">
+                  <div class="about-feature"><strong>Browse and research</strong><span>Open web pages in a calm, focused browser with profiles, bookmarks, history, and privacy controls.</span></div>
+                  <div class="about-feature"><strong>Read and mark up PDFs</strong><span>Open PDFs, zoom in, add text comments, draw with pen or highlighter, and export your work.</span></div>
+                  <div class="about-feature"><strong>Write with ink</strong><span>Use the floating ink palette with custom colors, stroke size, opacity, eraser, undo, and redo.</span></div>
+                  <div class="about-feature"><strong>Keep work organized</strong><span>Save notes per profile, personalize your workspace, and keep important data in one place.</span></div>
+                  <div class="about-feature"><strong>Stay protected</strong><span>Use profile locking, automatic lock triggers, encrypted password storage, and one-time recovery keys.</span></div>
+                  <div class="about-feature"><strong>Stay informed</strong><span>Follow topic-based news, jobs, and internship feeds directly from your home workspace.</span></div>
+                </div>
+              </section>
             </main>
           </div>
           <div class="settings-footer"><button id="btn-save-settings-${tabId}" class="settings-primary-button">Save settings</button><span id="settings-save-status-${tabId}" role="status"></span></div>
