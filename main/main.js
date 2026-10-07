@@ -229,7 +229,7 @@ function isProfileActive(profileId) {
 
 function lockProfileAutomatically(profileId, reason) {
   if (lockManager.isLocked(profileId) || isProfileActive(profileId)) return false;
-  if (!lockManager.status(profileId).credentialConfigured) return false;
+  if (!lockManager.getState(profileId).credentialConfigured) return false;
   lockManager.lock(profileId);
   clearProfileReauth(profileId);
   lockProfileWindows(profileId);
@@ -268,9 +268,9 @@ secureHandle('activity:touch', z.tuple([z.object({
   return true;
 });
 
-secureHandle('lock:state', null, async (e, profileId) => lockManager.status(profileId));
+secureHandle('lock:state', null, async (e, profileId) => lockManager.getState(profileId));
 secureHandle('lock:lock', null, async (e, profileId) => {
-  const state = lockManager.status(profileId);
+  const state = lockManager.getState(profileId);
   if (!state.credentialConfigured) throw new Error('Set a PIN or password before locking this profile.');
   const locked = lockManager.lock(profileId);
   clearProfileReauth(profileId);
@@ -299,7 +299,7 @@ secureHandle('lock:credential:set', z.tuple([
   z.string().min(1).max(512),
   z.string().min(1).max(512).nullable().optional()
 ]), async (e, profileId, type, secret, currentSecret) => {
-  if (lockManager.status(profileId).credentialConfigured) requireRecentReauth(profileId, e.sender.id);
+  if (lockManager.getState(profileId).credentialConfigured) requireRecentReauth(profileId, e.sender.id);
   const result = lockManager.setCredential(profileId, type, secret, currentSecret || null);
   clearProfileReauth(profileId);
   return result;
@@ -453,7 +453,7 @@ function createWindow(profileId = 'default') {
         const currentProfileId = windowProfiles.get(mainWindow.id);
         if (currentProfileId) {
           try {
-            const state = lockManager.status(currentProfileId);
+            const state = lockManager.getState(currentProfileId);
             if (state.credentialConfigured && !lockManager.isLocked(currentProfileId)) {
               lockManager.lock(currentProfileId);
               clearProfileReauth(currentProfileId);

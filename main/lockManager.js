@@ -16,11 +16,6 @@ class LockError extends Error {
     super(message);
     this.code = code;
   }
-
-  verifyCredential(profileId, secret) {
-    const record = this.getRecord(profileId);
-    return Boolean(record.credential && this.matches(record, secret));
-  }
 }
 
 class LockManager {
@@ -147,6 +142,11 @@ class LockManager {
 
   isLocked(profileId) {
     return this.getRecord(profileId).status === STATES.LOCKED;
+  }
+
+  verifyCredential(profileId, secret) {
+    const record = this.getRecord(profileId);
+    return Boolean(record.credential && this.matches(record, secret));
   }
 
   lock(profileId) {
