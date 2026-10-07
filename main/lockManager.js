@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const path = require('path');
 const profileManager = require('./profileManager');
 const utils = require('./utils');
@@ -6,6 +7,15 @@ const STATES = Object.freeze({
   UNLOCKED: 'Unlocked',
   LOCKED: 'Locked'
 });
+const SCRYPT = Object.freeze({ N: 32768, r: 8, p: 1, keyLength: 32 });
+const MAX_LOCKOUT_MS = 5 * 60 * 1000;
+
+class LockError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+  }
+}
 
 class LockManager {
   constructor() {
@@ -17,9 +27,8 @@ class LockManager {
   load() {
     try {
       const data = utils.safeLoadJsonSync(this.filePath);
-      if (data && data.schemaVersion === 1 && data.profiles && typeof data.profiles === 'object') {
-        this.states = data.profiles;
-      }
+      if (!data || !data.profiles || typeof data.profiles !== 'object') return;
+      if (data.schemaVersion === 1 || data.schemaVersion === 2) this.states = data.profiles;
     } catch (error) {
       console.error('Unable to load lock state:', error.message);
       this.states = {};
@@ -28,22 +37,34 @@ class LockManager {
 
   save() {
     utils.atomicWriteFileSync(this.filePath, JSON.stringify({
-      schemaVersion: 1,
+      schemaVersion: 2,
       profiles: this.states
     }, null, 2));
   }
 
-  getState(profileId) {
+  getRecord(profileId) {
     const state = this.states[profileId];
     if (!state || !Object.values(STATES).includes(state.status)) {
-      return { status: STATES.UNLOCKED, failedAttempts: 0, lockedAt: null };
+      return { status: STATES.UNLOCKED, failedAttempts: 0, nextAttemptAt: null, lockedAt: null };
     }
     return { ...state };
   }
 
+  getState(profileId) {
+    const record = this.getRecord(profileId);
+    return {
+      status: record.status,
+      failedAttempts: record.failedAttempts || 0,
+      nextAttemptAt: record.nextAttemptAt || null,
+      lockedAt: record.lockedAt || null,
+      credentialConfigured: Boolean(record.credential),
+      credentialType: record.credential?.type || null
+    };
+  }
+
   setState(profileId, status) {
-    if (!Object.values(STATES).includes(status)) throw new Error('Invalid lock state');
-    const current = this.getState(profileId);
+    if (!Object.values(STATES).includes(status)) throw new LockError('LOCK_CONFIG', 'Invalid lock state.');
+    const current = this.getRecord(profileId);
     this.states[profileId] = {
       ...current,
       status,
@@ -54,18 +75,95 @@ class LockManager {
   }
 
   isLocked(profileId) {
-    return this.getState(profileId).status === STATES.LOCKED;
+    return this.getRecord(profileId).status === STATES.LOCKED;
   }
 
   lock(profileId) {
     return this.setState(profileId, STATES.LOCKED);
   }
 
-  unlock(profileId) {
-    return this.setState(profileId, STATES.UNLOCKED);
+  validateCredential(type, secret) {
+    if (type !== 'pin' && type !== 'password') throw new LockError('LOCK_CONFIG', 'Credential type must be pin or password.');
+    if (typeof secret !== 'string') throw new LockError('LOCK_CONFIG', 'Credential is required.');
+    if (type === 'pin' && !/^\d{6,}$/.test(secret)) {
+      throw new LockError('LOCK_CONFIG', 'PIN must contain at least 6 digits.');
+    }
+    if (type === 'password' && secret.length < 8) {
+      throw new LockError('LOCK_CONFIG', 'Password must contain at least 8 characters.');
+    }
   }
 
-  status(profileId) {
+  derive(secret, salt) {
+    return crypto.scryptSync(secret, salt, SCRYPT.keyLength, {
+      N: SCRYPT.N,
+      r: SCRYPT.r,
+      p: SCRYPT.p,
+      maxmem: 64 * 1024 * 1024
+    });
+  }
+
+  matches(record, secret) {
+    if (!record.credential || typeof secret !== 'string') return false;
+    const expected = Buffer.from(record.credential.verifier, 'base64');
+    const actual = this.derive(secret, Buffer.from(record.credential.salt, 'base64'));
+    return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+  }
+
+  setCredential(profileId, type, secret, currentSecret = null) {
+    this.validateCredential(type, secret);
+    const record = this.getRecord(profileId);
+    if (record.status === STATES.LOCKED) throw new LockError('LOCK_CONFIG', 'Unlock the profile before changing its credential.');
+    if (record.credential && !this.matches(record, currentSecret)) {
+      throw new LockError('LOCK_AUTH', 'Current credential is incorrect.');
+    }
+    const salt = crypto.randomBytes(16);
+    const verifier = this.derive(secret, salt);
+    this.states[profileId] = {
+      ...record,
+      credential: {
+        type,
+        salt: salt.toString('base64'),
+        verifier: verifier.toString('base64'),
+        params: SCRYPT
+      }
+    };
+    this.save();
+    return this.getState(profileId);
+  }
+
+  removeCredential(profileId, currentSecret) {
+    const record = this.getRecord(profileId);
+    if (!record.credential || !this.matches(record, currentSecret)) {
+      throw new LockError('LOCK_AUTH', 'Current credential is incorrect.');
+    }
+    delete record.credential;
+    this.states[profileId] = { ...record, status: STATES.UNLOCKED, failedAttempts: 0, nextAttemptAt: null };
+    this.save();
+    return this.getState(profileId);
+  }
+
+  unlock(profileId, secret) {
+    const record = this.getRecord(profileId);
+    if (!record.credential) throw new LockError('LOCK_CONFIG', 'No lock credential is configured.');
+    const now = Date.now();
+    if (record.nextAttemptAt && now < record.nextAttemptAt) {
+      const seconds = Math.ceil((record.nextAttemptAt - now) / 1000);
+      throw new LockError('LOCK_DELAY', `Try again in ${seconds} seconds.`);
+    }
+    if (!this.matches(record, secret)) {
+      const failedAttempts = (record.failedAttempts || 0) + 1;
+      const delay = failedAttempts >= 5 ? Math.min(30000 * (2 ** (failedAttempts - 5)), MAX_LOCKOUT_MS) : 0;
+      this.states[profileId] = {
+        ...record,
+        status: STATES.LOCKED,
+        failedAttempts,
+        nextAttemptAt: delay ? now + delay : null
+      };
+      this.save();
+      throw new LockError('LOCK_AUTH', 'Credential is incorrect.');
+    }
+    this.states[profileId] = { ...record, status: STATES.UNLOCKED, failedAttempts: 0, nextAttemptAt: null };
+    this.save();
     return this.getState(profileId);
   }
 }

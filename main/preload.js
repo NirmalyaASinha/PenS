@@ -34,7 +34,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),
   getLockState: () => ipcRenderer.invoke('lock:state'),
   lockProfile: () => ipcRenderer.invoke('lock:lock'),
-  unlockProfile: () => ipcRenderer.invoke('lock:unlock'),
+  unlockProfile: (secret) => ipcRenderer.invoke('lock:unlock', secret),
+  setLockCredential: (type, secret, currentSecret = null) => ipcRenderer.invoke('lock:credential:set', type, secret, currentSecret),
+  removeLockCredential: (currentSecret) => ipcRenderer.invoke('lock:credential:remove', currentSecret),
   fetchHomeFeed: (topic, kind) => ipcRenderer.invoke('home:fetch-feed', topic, kind),
   onSettingsLoaded: (callback) => ipcRenderer.on('settings-loaded', (e, settings) => callback(settings)),
 

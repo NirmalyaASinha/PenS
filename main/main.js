@@ -92,7 +92,7 @@ function secureHandle(channel, schema, handler) {
   ipcMain.handle(channel, async (e, ...args) => {
     try {
       const profileId = getProfileIdFromEvent(e);
-      if (!['lock:state', 'lock:lock', 'lock:unlock'].includes(channel) && lockManager.isLocked(profileId)) {
+      if (!channel.startsWith('lock:') && lockManager.isLocked(profileId)) {
         throw new Error('Profile is locked');
       }
       if (['privacy:clear-data', 'sync:export', 'passwords:get'].includes(channel)) {
@@ -105,7 +105,7 @@ function secureHandle(channel, schema, handler) {
       if (schema) validatedArgs = schema.parse(args);
       return await handler(e, profileId, ...validatedArgs);
     } catch (err) {
-      if (err.message === 'Profile is locked') throw new Error('Profile is locked');
+      if (err.message === 'Profile is locked' || err.code?.startsWith('LOCK_')) throw new Error(err.message);
       console.error(`IPC Validation Error on ${channel}:`, err.message);
       return { error: 'Validation failed' };
     }
@@ -114,7 +114,13 @@ function secureHandle(channel, schema, handler) {
 
 secureHandle('lock:state', null, async (e, profileId) => lockManager.status(profileId));
 secureHandle('lock:lock', null, async (e, profileId) => lockManager.lock(profileId));
-secureHandle('lock:unlock', null, async (e, profileId) => lockManager.unlock(profileId));
+secureHandle('lock:unlock', z.tuple([z.string().min(1).max(512)]), async (e, profileId, secret) => lockManager.unlock(profileId, secret));
+secureHandle('lock:credential:set', z.tuple([
+  z.enum(['pin', 'password']),
+  z.string().min(1).max(512),
+  z.string().min(1).max(512).nullable().optional()
+]), async (e, profileId, type, secret, currentSecret) => lockManager.setCredential(profileId, type, secret, currentSecret || null));
+secureHandle('lock:credential:remove', z.tuple([z.string().min(1).max(512)]), async (e, profileId, currentSecret) => lockManager.removeCredential(profileId, currentSecret));
 
 function handlePensRequest(request) {
   const url = new URL(request.url);
