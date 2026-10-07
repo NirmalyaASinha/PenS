@@ -133,10 +133,14 @@ class PDFViewer {
     if (!record) return;
     record.renderTask?.cancel();
     record.renderTask = null;
-    if (!record.engine) return;
     record.container.querySelector('.pdf-render-canvas')?.remove();
     record.container.querySelector('.textLayer')?.remove();
     record.renderedScale = 0;
+  }
+
+  activate() {
+    if (this.destroyed || !this.pdfDoc) return;
+    this.renderVisiblePages();
   }
 
   async renderPage(pageNum, generation) {

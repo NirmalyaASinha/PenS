@@ -1895,6 +1895,7 @@ function activateTab(tabId) {
         addressBar.value = (tab.webview && tab.webview.getURL) ? (tab.webview.getURL() || tab.url) : tab.url;
       }
       if (tab.pdfViewer) {
+        tab.pdfViewer.activate();
         tab.pdfViewer.setMode(window.effectiveMode);
         tab.pdfViewer.setEraser(window.isEraser);
       }

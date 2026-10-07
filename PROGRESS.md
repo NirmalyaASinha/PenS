@@ -36,6 +36,7 @@ Updated: 2026-10-07
 - Added a guarded lock transition path to avoid duplicate automatic/keyboard lock races and duplicate lock windows.
 - Fixed a module-scope error in lock reauthentication cleanup that could leave lock operations partially completed, and changed Settings save feedback to inline non-blocking status instead of a modal alert.
 - Hardened the content viewport and active-tab hit testing so inactive PDF/webview surfaces cannot cover Settings with a black compositor region or intercept field input.
+- Fixed the multi-PDF inactive-tab render race: PDFs that finish loading while hidden now refresh visible-page rendering when their tab is activated, and stale canvases are always removed during page release.
 - Fixed the live Home Focus button binding; it now opens the dedicated Focus tab instead of relying on the inactive legacy loader.
 - Compacted the Home news panel into bounded two-column lists and added a visible, persisted topic filter with Save filter and reload controls.
 - Updated README and release documentation for current कलम features and artifacts; large Windows executables are tracked with Git LFS because GitHub rejects ordinary blobs over 100 MB.
