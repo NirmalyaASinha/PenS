@@ -40,6 +40,7 @@ const bookmarksManager = require('./bookmarksManager');
 const historyManager = require('./historyManager');
 const settingsManager = require('./settingsManager');
 const downloadsManager = require('./downloadsManager');
+const { lockManager } = require('./lockManager');
 
 const windowProfiles = new Map();
 
@@ -91,6 +92,9 @@ function secureHandle(channel, schema, handler) {
   ipcMain.handle(channel, async (e, ...args) => {
     try {
       const profileId = getProfileIdFromEvent(e);
+      if (!['lock:state', 'lock:lock'].includes(channel) && lockManager.isLocked(profileId)) {
+        throw new Error('Profile is locked');
+      }
       if (['privacy:clear-data', 'sync:export', 'passwords:get'].includes(channel)) {
         const key = `${profileId}:${channel}`;
         const lastCall = rateLimits.get(key) || 0;
@@ -106,6 +110,9 @@ function secureHandle(channel, schema, handler) {
     }
   });
 }
+
+secureHandle('lock:state', null, async (e, profileId) => lockManager.status(profileId));
+secureHandle('lock:lock', null, async (e, profileId) => lockManager.lock(profileId));
 
 function handlePensRequest(request) {
   const url = new URL(request.url);
