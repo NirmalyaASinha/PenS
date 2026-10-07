@@ -17,6 +17,7 @@ Updated: 2026-10-07
 - Added main-process PIN/password credentials with scrypt verifiers, random salts, constant-time checks, persisted escalating failed-attempt delays, and credential change/removal checks.
 - Added a trusted internal lock window, toolbar lock button, Ctrl+Shift+L shortcut, hidden profile windows during lock, and credential-verified restoration on unlock.
 - Added profile automatic-lock settings for idle timeout, minimize, Windows lock/sleep, and app startup, with main-process activity protection for typing and drawing.
+- Added locked-window content protection, neutral titles, and notification permission suppression while profiles are locked.
 - Rebuilt the unsigned RC installer and portable artifact after the latest changes.
 
 ## Current release status
@@ -25,7 +26,7 @@ Updated: 2026-10-07
 - Electron: `33.4.11`
 - electron-builder: `25.1.8`
 - App ID: `com.nirmalyasinha.pens`
-- Latest commit: `2d2d280`
+- Latest commit: pending
 - Build artifacts are unsigned because no Authenticode certificate is configured.
 
 ## Remaining release blockers
@@ -35,6 +36,7 @@ Updated: 2026-10-07
 - Full security, migration, importer, packaged E2E, upgrade, uninstall, performance, accessibility, and compatibility verification.
 - Authenticode signing and signature verification.
 - Updater implementation and signed update testing.
+- Windows may retain already-delivered notification toasts until their normal OS timeout; Electron does not provide a supported API to retract those existing notifications.
 
 ## Verification convention
 

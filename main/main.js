@@ -125,6 +125,7 @@ function getProfileWindows(profileId) {
 function showProfileWindows(profileId) {
   getProfileWindows(profileId).forEach((win) => {
     if (!win.isDestroyed()) {
+      win.setContentProtection(false);
       win.show();
       win.focus();
       win.setTitle('PenS');
@@ -156,6 +157,8 @@ function createLockWindow(profileId) {
       session: session.fromPartition(partition)
     }
   });
+  lockWindow.setContentProtection(true);
+  lockWindow.setTitle('PenS');
   lockWindows.set(profileId, lockWindow);
   windowProfiles.set(lockWindow.id, profileId);
   lockWindow.loadURL('pens://app/renderer/lock.html');
@@ -176,6 +179,7 @@ function lockProfileWindows(profileId) {
   windows.forEach((win) => {
     if (!win.isDestroyed()) {
       win.webContents.send('profile-locked');
+      win.setContentProtection(true);
       win.hide();
       win.setTitle('PenS');
     }
@@ -190,11 +194,6 @@ function isProfileActive(profileId) {
 
 function lockProfileAutomatically(profileId, reason) {
   if (lockManager.isLocked(profileId) || isProfileActive(profileId)) return false;
-  const settings = settingsManager.load(profileId);
-  if (settings.lockOnStartup && lockManager.status(profileId).credentialConfigured && !lockManager.isLocked(profileId)) {
-    lockManager.lock(profileId);
-  }
-  scheduleIdleLock(profileId);
   if (!lockManager.status(profileId).credentialConfigured) return false;
   lockManager.lock(profileId);
   lockProfileWindows(profileId);
@@ -311,6 +310,10 @@ function createWindow(profileId = 'default') {
 
   // Task 4.3: Permissions: default deny
   profileSession.setPermissionRequestHandler(async (webContents, permission, callback, details) => {
+    if (lockManager.isLocked(profileId) || permission === 'notifications') {
+      callback(false);
+      return;
+    }
     // Deny if not from a trusted top-level frame unless explicitly delegated (simplification: deny cross-origin)
     const requestingUrl = details.requestingUrl || webContents.getURL();
     let requestingOrigin;
@@ -356,6 +359,7 @@ function createWindow(profileId = 'default') {
   });
 
   profileSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
+    if (lockManager.isLocked(profileId) || permission === 'notifications') return false;
     const key = `${profileId}:${requestingOrigin}:${permission}`;
     return sitePermissions.get(key) === true;
   });
@@ -380,6 +384,8 @@ function createWindow(profileId = 'default') {
       session: profileSession
     }
   });
+  mainWindow.setContentProtection(false);
+  mainWindow.setTitle('PenS');
 
   // Intercept Ctrl+R, F5, Ctrl+Shift+R on the main window so the shell never reloads
   mainWindow.webContents.on('before-input-event', (event, input) => {
@@ -415,6 +421,8 @@ function createWindow(profileId = 'default') {
     mainWindow.webContents.send('profile-info', profile);
     mainWindow.webContents.send('settings-loaded', settings);
     if (lockManager.isLocked(profile.id)) {
+      mainWindow.setContentProtection(true);
+      mainWindow.setTitle('PenS');
       mainWindow.hide();
       createLockWindow(profile.id);
     }
