@@ -24,7 +24,7 @@ Updated: 2026-10-07
 - Electron: `33.4.11`
 - electron-builder: `25.1.8`
 - App ID: `com.nirmalyasinha.pens`
-- Latest commit: pending
+- Latest commit: `fb4fc1d`
 - Build artifacts are unsigned because no Authenticode certificate is configured.
 
 ## Remaining release blockers
