@@ -2117,6 +2117,17 @@ if (window.electronAPI && window.electronAPI.onReloadActiveTab) {
   window.electronAPI.onReloadActiveTab((opts) => reloadActiveTab(opts));
 }
 
+if (window.electronAPI && window.electronAPI.onProfileLocked) {
+  window.electronAPI.onProfileLocked(() => {
+    tabs.forEach(tab => tab.pdfViewer?.suspend());
+  });
+}
+if (window.electronAPI && window.electronAPI.onProfileUnlocked) {
+  window.electronAPI.onProfileUnlocked(() => {
+    tabs.forEach(tab => tab.pdfViewer?.resume());
+  });
+}
+
 
 
 // --- Floating Palette & Side Dock Logic ---

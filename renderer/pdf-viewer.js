@@ -14,6 +14,7 @@ class PDFViewer {
     this.renderGeneration = 0;
     this.renderTimers = new Map();
     this.intersectionObserver = null;
+    this.destroyed = false;
 
     this.container.style.overflowY = 'auto';
     this.container.style.backgroundColor = '#525659';
@@ -98,7 +99,7 @@ class PDFViewer {
   }
 
   renderVisiblePages() {
-    if (!this.pdfDoc) return;
+    if (this.destroyed || !this.pdfDoc) return;
     const viewTop = this.container.scrollTop;
     const viewBottom = viewTop + this.container.clientHeight;
     this.pages.forEach((record, pageNum) => {
@@ -129,9 +130,10 @@ class PDFViewer {
 
   releasePage(pageNum) {
     const record = this.pages.get(pageNum);
-    if (!record || !record.engine) return;
+    if (!record) return;
     record.renderTask?.cancel();
     record.renderTask = null;
+    if (!record.engine) return;
     record.container.querySelector('.pdf-render-canvas')?.remove();
     record.container.querySelector('.textLayer')?.remove();
     record.renderedScale = 0;
@@ -139,15 +141,21 @@ class PDFViewer {
 
   async renderPage(pageNum, generation) {
     const record = this.pages.get(pageNum);
-    if (!record || generation !== this.renderGeneration ||
+    if (this.destroyed || !record || generation !== this.renderGeneration ||
         (record.renderedScale === this.scale && record.container.querySelector('.pdf-render-canvas'))) return;
     record.renderTask?.cancel();
     const viewport = record.page.getViewport({ scale: this.scale });
     const canvas = record.container.querySelector('.pdf-render-canvas') || document.createElement('canvas');
     canvas.className = 'pdf-render-canvas';
-    const outputScale = Math.min(this.performanceMode ? 1 : 2, Math.max(1, window.devicePixelRatio || 1));
-    canvas.width = Math.min(4096, Math.ceil(viewport.width * outputScale));
-    canvas.height = Math.min(4096, Math.ceil(viewport.height * outputScale));
+    const maxScale = this.performanceMode ? 1 : 2;
+    const outputScale = Math.min(
+    maxScale,
+    Math.max(1, window.devicePixelRatio || 1),
+    4096 / viewport.width,
+    4096 / viewport.height
+    );
+    canvas.width = Math.max(1, Math.ceil(viewport.width * outputScale));
+    canvas.height = Math.max(1, Math.ceil(viewport.height * outputScale));
     canvas.style.width = `${viewport.width}px`;
     canvas.style.height = `${viewport.height}px`;
     canvas.style.display = 'block';
@@ -308,6 +316,41 @@ class PDFViewer {
 
   clear() {
     this.engines.forEach(engine => engine?.clear());
+  }
+
+  suspend() {
+    if (this.destroyed) return;
+    this.renderGeneration++;
+    clearTimeout(this.zoomTimer);
+    this.cancelRenders();
+    this.intersectionObserver?.disconnect();
+    this.intersectionObserver = null;
+  }
+
+  resume() {
+    if (this.destroyed || !this.pdfDoc) return;
+    this.renderGeneration++;
+    this.intersectionObserver = new IntersectionObserver(() => this.renderVisiblePages(), {
+      root: this.container,
+      rootMargin: '120% 0px'
+    });
+    this.pages.forEach(record => this.intersectionObserver.observe(record.container));
+    this.renderVisiblePages();
+  }
+
+  destroy() {
+    this.destroyed = true;
+    this.renderGeneration++;
+    clearTimeout(this.zoomTimer);
+    this.cancelRenders();
+    this.intersectionObserver?.disconnect();
+    this.pages.forEach(record => {
+      record.renderTask?.cancel();
+      record.renderTask = null;
+      record.container.replaceChildren();
+    });
+    this.pages.clear();
+    this.engines = [];
   }
 }
 

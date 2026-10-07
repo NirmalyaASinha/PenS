@@ -22,6 +22,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updatePersonalDetails: (details) => ipcRenderer.invoke('profiles:personal-details:update', details),
   openProfile: (id) => ipcRenderer.invoke('profiles:open', id),
   onProfileInfo: (callback) => ipcRenderer.on('profile-info', (e, profile) => callback(profile)),
+  onProfileLocked: (callback) => ipcRenderer.on('profile-locked', () => callback()),
+  onProfileUnlocked: (callback) => ipcRenderer.on('profile-unlocked', () => callback()),
 
   // Bookmarks & History
   getBookmarks: () => ipcRenderer.invoke('bookmarks:get'),

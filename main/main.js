@@ -55,6 +55,7 @@ const reauthSessions = new Map();
 const REAUTH_REQUIRED = new Set(['passwords:get', 'sync:export', 'profiles:delete']);
 const profileActivity = new Map();
 const idleTimers = new Map();
+const lockingProfiles = new Set();
 
 // Task 4.1: Certificate errors
 const trustedCerts = new Map();
@@ -164,6 +165,7 @@ function showProfileWindows(profileId) {
       win.show();
       win.focus();
       win.setTitle('कलम');
+      win.webContents.send('profile-unlocked');
     }
   });
 }
@@ -228,13 +230,23 @@ function isProfileActive(profileId) {
 }
 
 function lockProfileAutomatically(profileId, reason) {
-  if (lockManager.isLocked(profileId) || isProfileActive(profileId)) return false;
+  if (lockingProfiles.has(profileId) || lockManager.isLocked(profileId) || isProfileActive(profileId)) return false;
   if (!lockManager.getState(profileId).credentialConfigured) return false;
-  lockManager.lock(profileId);
-  clearProfileReauth(profileId);
-  lockProfileWindows(profileId);
-  console.info(`Profile locked automatically (${reason})`);
-  return true;
+  return lockProfileAndHide(profileId, reason);
+}
+
+function lockProfileAndHide(profileId, reason) {
+  if (lockingProfiles.has(profileId) || lockManager.isLocked(profileId)) return false;
+  lockingProfiles.add(profileId);
+  try {
+    const locked = lockManager.lock(profileId);
+    clearProfileReauth(profileId);
+    lockProfileWindows(profileId);
+    console.info(`Profile locked (${reason})`);
+    return locked;
+  } finally {
+    lockingProfiles.delete(profileId);
+  }
 }
 
 function scheduleIdleLock(profileId) {
@@ -272,10 +284,7 @@ secureHandle('lock:state', null, async (e, profileId) => lockManager.getState(pr
 secureHandle('lock:lock', null, async (e, profileId) => {
   const state = lockManager.getState(profileId);
   if (!state.credentialConfigured) throw new Error('Set a PIN or password before locking this profile.');
-  const locked = lockManager.lock(profileId);
-  clearProfileReauth(profileId);
-  lockProfileWindows(profileId);
-  return locked;
+  return lockProfileAndHide(profileId, 'manual request');
 });
 secureHandle('lock:unlock', z.tuple([z.string().min(1).max(512)]), async (e, profileId, secret) => {
   const unlocked = lockManager.unlock(profileId, secret);
@@ -455,9 +464,7 @@ function createWindow(profileId = 'default') {
           try {
             const state = lockManager.getState(currentProfileId);
             if (state.credentialConfigured && !lockManager.isLocked(currentProfileId)) {
-              lockManager.lock(currentProfileId);
-              clearProfileReauth(currentProfileId);
-              lockProfileWindows(currentProfileId);
+              lockProfileAndHide(currentProfileId, 'keyboard shortcut');
             }
           } catch (error) {
             console.error('Unable to lock profile:', error.message);
