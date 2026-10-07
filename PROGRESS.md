@@ -18,6 +18,7 @@ Updated: 2026-10-07
 - Added a trusted internal lock window, toolbar lock button, Ctrl+Shift+L shortcut, hidden profile windows during lock, and credential-verified restoration on unlock.
 - Added profile automatic-lock settings for idle timeout, minimize, Windows lock/sleep, and app startup, with main-process activity protection for typing and drawing.
 - Added locked-window content protection, neutral titles, and notification permission suppression while profiles are locked.
+- Added one-time recovery keys (stored as salted digests), two-minute main-process reauthentication, and guards for password reveal, profile export/deletion, and lock changes.
 - Rebuilt the unsigned RC installer and portable artifact after the latest changes.
 
 ## Current release status
@@ -26,7 +27,7 @@ Updated: 2026-10-07
 - Electron: `33.4.11`
 - electron-builder: `25.1.8`
 - App ID: `com.nirmalyasinha.pens`
-- Latest commit: `5f8c988`
+- Latest commit: `2a1fae6`
 - Build artifacts are unsigned because no Authenticode certificate is configured.
 
 ## Remaining release blockers
