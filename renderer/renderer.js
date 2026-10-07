@@ -815,6 +815,11 @@ function createTab(url = 'pens://home') {
           </div>
           
           <div id="notes-grid-${tabId}" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; margin-top: 20px;"></div>
+          <section class="home-feed-panel" id="home-feed-${tabId}">
+            <div class="home-feed-header"><div><h3>Latest for you</h3><p>Choose a topic to see current headlines and opportunities.</p></div><button id="home-feed-refresh-${tabId}" class="home-feed-refresh">Refresh</button></div>
+            <div class="home-feed-controls"><input id="home-feed-topic-${tabId}" type="text" maxlength="120" placeholder="Technology, design, finance..." aria-label="News topic"><button id="home-feed-news-${tabId}">News</button><button id="home-feed-jobs-${tabId}">Jobs & internships</button></div>
+            <div class="home-feed-columns"><div><h4>News</h4><div id="home-news-list-${tabId}" class="home-feed-list"><p class="home-feed-empty">Choose a topic to load headlines.</p></div></div><div><h4>Jobs & internships</h4><div id="home-jobs-list-${tabId}" class="home-feed-list"><p class="home-feed-empty">Choose a topic to load opportunities.</p></div></div></div>
+          </section>
         </div>
       </div>
     `;
@@ -844,6 +849,58 @@ function createTab(url = 'pens://home') {
       });
       
       if (window.electronAPI) {
+        const topicInput = document.getElementById(`home-feed-topic-${tabId}`);
+        const savedSettings = await window.electronAPI.getSettings().catch(() => ({}));
+        topicInput.value = savedSettings.newsTopic || '';
+        const parseFeed = (xml) => {
+          const doc = new DOMParser().parseFromString(xml, 'text/xml');
+          return Array.from(doc.querySelectorAll('item')).slice(0, 6).map(item => ({
+            title: item.querySelector('title')?.textContent?.trim() || 'Untitled',
+            link: item.querySelector('link')?.textContent?.trim() || '',
+            date: item.querySelector('pubDate')?.textContent?.trim() || ''
+          }));
+        };
+        const renderFeed = (list, items) => {
+          list.replaceChildren();
+          if (!items.length) { list.innerHTML = '<p class="home-feed-empty">No matching results.</p>'; return; }
+          items.forEach(item => {
+            const card = document.createElement('a');
+            card.className = 'home-feed-item';
+            card.href = item.link;
+            card.target = '_blank';
+            card.rel = 'noopener noreferrer';
+            const title = document.createElement('strong');
+            title.textContent = item.title;
+            const date = document.createElement('small');
+            date.textContent = item.date ? new Date(item.date).toLocaleDateString() : 'Latest';
+            card.append(title, date);
+            list.appendChild(card);
+          });
+        };
+        const loadFeed = async (kind, target) => {
+          const topic = topicInput.value.trim();
+          if (!topic) { target.innerHTML = '<p class="home-feed-empty">Enter a topic first.</p>'; topicInput.focus(); return; }
+          target.innerHTML = '<p class="home-feed-empty">Loading...</p>';
+          try {
+            await window.electronAPI.saveSettings({ ...savedSettings, newsTopic: topic });
+            renderFeed(target, parseFeed(await window.electronAPI.fetchHomeFeed(topic, kind)));
+          } catch (error) {
+            console.error('Unable to load home feed:', error);
+            target.innerHTML = '<p class="home-feed-empty">Feed unavailable. Check your connection and try again.</p>';
+          }
+        };
+        const newsList = document.getElementById(`home-news-list-${tabId}`);
+        const jobsList = document.getElementById(`home-jobs-list-${tabId}`);
+        document.getElementById(`home-feed-news-${tabId}`).onclick = () => loadFeed('news', newsList);
+        document.getElementById(`home-feed-jobs-${tabId}`).onclick = () => loadFeed('jobs', jobsList);
+        document.getElementById(`home-feed-refresh-${tabId}`).onclick = () => {
+          loadFeed('news', newsList);
+          loadFeed('jobs', jobsList);
+        };
+        if (topicInput.value) {
+          loadFeed('news', newsList);
+          loadFeed('jobs', jobsList);
+        }
         if (window.electronAPI.getUsername) {
           const username = await window.electronAPI.getUsername();
           document.getElementById(`home-subtitle-${tabId}`).textContent = `Hey ${username}`;

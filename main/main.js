@@ -407,6 +407,13 @@ secureHandle('history:clear', null, async (e, profileId) => historyManager.clear
 // Settings IPC
 secureHandle('settings:get', null, async (e, profileId) => settingsManager.load(profileId));
 secureHandle('settings:save', z.tuple([z.any()]), async (e, profileId, settings) => settingsManager.save(profileId, settings));
+secureHandle('home:fetch-feed', z.tuple([z.string().trim().max(120), z.enum(['news', 'jobs'])]), async (e, profileId, topic, kind) => {
+  const query = [topic, kind === 'jobs' ? 'jobs internship' : 'news'].filter(Boolean).join(' ');
+  const feedUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-IN&gl=IN&ceid=IN:en`;
+  const response = await fetch(feedUrl, { signal: AbortSignal.timeout(10000) });
+  if (!response.ok) throw new Error(`News feed returned HTTP ${response.status}.`);
+  return (await response.text()).slice(0, 500000);
+});
 
 // Downloads IPC
 secureHandle('downloads:get', null, async (e, profileId) => downloadsManager.load(profileId));
