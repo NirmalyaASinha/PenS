@@ -1158,11 +1158,6 @@ function createTab(url = 'pens://home') {
     `;
     contentArea.appendChild(viewContainer);
     tabs.push(tabObj);
-    const settingsPage = viewContainer.querySelector('.settings-page');
-    if (settingsPage) {
-      addIdentitySettings(tabId, settingsPage).catch(error => console.error('Unable to load identity settings:', error));
-    }
-
     setTimeout(async () => {
       const historyList = document.getElementById(`history-list-${tabId}`);
       document.getElementById(`btn-clear-history-${tabId}`).onclick = async () => {
