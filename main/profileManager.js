@@ -131,6 +131,18 @@ class ProfileManager {
     return this.getProfile(id).personalDetails;
   }
 
+  deleteProfile(id) {
+    if (id === 'default' || id === 'guest' || !this.profiles[id]) {
+      throw new Error('This profile cannot be deleted');
+    }
+    const profilePath = path.join(this.profilesDir, id);
+    fs.rmSync(profilePath, { recursive: true, force: false });
+    delete this.profiles[id];
+    if (this.lastUsed === id) this.lastUsed = 'default';
+    this.save();
+    return true;
+  }
+
   getNotesPath(profileId) {
     if (profileId === 'guest') {
       const gPath = path.join(this.profilesDir, 'guest', 'notes');

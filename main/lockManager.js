@@ -15,6 +15,11 @@ class LockError extends Error {
     super(message);
     this.code = code;
   }
+
+  verifyCredential(profileId, secret) {
+    const record = this.getRecord(profileId);
+    return Boolean(record.credential && this.matches(record, secret));
+  }
 }
 
 class LockManager {
@@ -58,8 +63,17 @@ class LockManager {
       nextAttemptAt: record.nextAttemptAt || null,
       lockedAt: record.lockedAt || null,
       credentialConfigured: Boolean(record.credential),
-      credentialType: record.credential?.type || null
+      credentialType: record.credential?.type || null,
+      recoveryConfigured: Boolean(record.recovery)
     };
+  }
+
+  createRecoveryKey() {
+    return crypto.randomBytes(24).toString('base64url').match(/.{1,6}/g).join('-').toUpperCase();
+  }
+
+  recoveryDigest(key, salt) {
+    return crypto.createHash('sha256').update(salt).update(String(key).trim().toUpperCase()).digest('base64');
   }
 
   setState(profileId, status) {
@@ -79,6 +93,22 @@ class LockManager {
   }
 
   lock(profileId) {
+    const record = this.getRecord(profileId);
+    if (record.credential && !record.recovery) {
+      const recoveryKey = this.createRecoveryKey();
+      const recoverySalt = crypto.randomBytes(16);
+      this.states[profileId] = {
+        ...record,
+        status: STATES.LOCKED,
+        lockedAt: Date.now(),
+        recovery: {
+          salt: recoverySalt.toString('base64'),
+          digest: this.recoveryDigest(recoveryKey, recoverySalt)
+        }
+      };
+      this.save();
+      return { ...this.getState(profileId), recoveryKey };
+    }
     return this.setState(profileId, STATES.LOCKED);
   }
 
@@ -118,6 +148,8 @@ class LockManager {
     }
     const salt = crypto.randomBytes(16);
     const verifier = this.derive(secret, salt);
+    const recoveryKey = this.createRecoveryKey();
+    const recoverySalt = crypto.randomBytes(16);
     this.states[profileId] = {
       ...record,
       credential: {
@@ -125,10 +157,14 @@ class LockManager {
         salt: salt.toString('base64'),
         verifier: verifier.toString('base64'),
         params: SCRYPT
+      },
+      recovery: {
+        salt: recoverySalt.toString('base64'),
+        digest: this.recoveryDigest(recoveryKey, recoverySalt)
       }
     };
     this.save();
-    return this.getState(profileId);
+    return { ...this.getState(profileId), recoveryKey };
   }
 
   removeCredential(profileId, currentSecret) {
@@ -137,6 +173,7 @@ class LockManager {
       throw new LockError('LOCK_AUTH', 'Current credential is incorrect.');
     }
     delete record.credential;
+    delete record.recovery;
     this.states[profileId] = { ...record, status: STATES.UNLOCKED, failedAttempts: 0, nextAttemptAt: null };
     this.save();
     return this.getState(profileId);
@@ -146,11 +183,14 @@ class LockManager {
     const record = this.getRecord(profileId);
     if (!record.credential) throw new LockError('LOCK_CONFIG', 'No lock credential is configured.');
     const now = Date.now();
-    if (record.nextAttemptAt && now < record.nextAttemptAt) {
+    const normalizedSecret = typeof secret === 'string' ? secret.trim() : '';
+    const recoveryMatches = record.recovery
+      && recoveryDigestMatches(normalizedSecret, record.recovery);
+    if (!recoveryMatches && record.nextAttemptAt && now < record.nextAttemptAt) {
       const seconds = Math.ceil((record.nextAttemptAt - now) / 1000);
       throw new LockError('LOCK_DELAY', `Try again in ${seconds} seconds.`);
     }
-    if (!this.matches(record, secret)) {
+    if (!this.matches(record, normalizedSecret) && !recoveryMatches) {
       const failedAttempts = (record.failedAttempts || 0) + 1;
       const delay = failedAttempts >= 5 ? Math.min(30000 * (2 ** (failedAttempts - 5)), MAX_LOCKOUT_MS) : 0;
       this.states[profileId] = {
@@ -162,10 +202,22 @@ class LockManager {
       this.save();
       throw new LockError('LOCK_AUTH', 'Credential is incorrect.');
     }
-    this.states[profileId] = { ...record, status: STATES.UNLOCKED, failedAttempts: 0, nextAttemptAt: null };
+    const unlockedRecord = { ...record, status: STATES.UNLOCKED, failedAttempts: 0, nextAttemptAt: null };
+    if (recoveryMatches) delete unlockedRecord.recovery;
+    this.states[profileId] = unlockedRecord;
     this.save();
     return this.getState(profileId);
   }
+}
+
+function recoveryDigestMatches(key, recovery) {
+  if (!recovery || typeof recovery.salt !== 'string' || typeof recovery.digest !== 'string') return false;
+  const expected = Buffer.from(recovery.digest, 'base64');
+  const actual = crypto.createHash('sha256')
+    .update(Buffer.from(recovery.salt, 'base64'))
+    .update(String(key).trim().toUpperCase())
+    .digest();
+  return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
 }
 
 module.exports = { lockManager: new LockManager(), LOCK_STATES: STATES };

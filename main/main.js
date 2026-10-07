@@ -27,6 +27,13 @@ async function safeOpenExternal(urlStr) {
       await shell.openExternal(urlStr);
       return true;
     }
+
+    function clearProfileReauth(profileId) {
+      const prefix = `${profileId}:`;
+      for (const key of reauthSessions.keys()) {
+        if (key.startsWith(prefix)) reauthSessions.delete(key);
+      }
+    }
     return false;
   } catch (err) {
     return false;
@@ -44,6 +51,8 @@ const { lockManager } = require('./lockManager');
 
 const windowProfiles = new Map();
 const lockWindows = new Map();
+const reauthSessions = new Map();
+const REAUTH_REQUIRED = new Set(['passwords:get', 'sync:export', 'profiles:delete']);
 const profileActivity = new Map();
 const idleTimers = new Map();
 
@@ -98,11 +107,37 @@ function secureHandle(channel, schema, handler) {
       if (!channel.startsWith('lock:') && lockManager.isLocked(profileId)) {
         throw new Error('Profile is locked');
       }
+      if (REAUTH_REQUIRED.has(channel) && !hasRecentReauth(profileId, e.sender.id)) {
+        const error = new Error('Reauthentication required.');
+        error.code = 'LOCK_REAUTH';
+        throw error;
+      }
       if (['privacy:clear-data', 'sync:export', 'passwords:get'].includes(channel)) {
         const key = `${profileId}:${channel}`;
         const lastCall = rateLimits.get(key) || 0;
         if (Date.now() - lastCall < 2000) throw new Error('Rate limit exceeded');
         rateLimits.set(key, Date.now());
+      }
+
+      function reauthKey(profileId, senderId) {
+        return `${profileId}:${senderId}`;
+      }
+
+      function hasRecentReauth(profileId, senderId) {
+        const expiresAt = reauthSessions.get(reauthKey(profileId, senderId)) || 0;
+        if (expiresAt <= Date.now()) {
+          reauthSessions.delete(reauthKey(profileId, senderId));
+          return false;
+        }
+        return true;
+      }
+
+      function requireRecentReauth(profileId, senderId) {
+        if (!hasRecentReauth(profileId, senderId)) {
+          const error = new Error('Reauthentication required.');
+          error.code = 'LOCK_REAUTH';
+          throw error;
+        }
       }
       let validatedArgs = [];
       if (schema) validatedArgs = schema.parse(args);
@@ -196,6 +231,7 @@ function lockProfileAutomatically(profileId, reason) {
   if (lockManager.isLocked(profileId) || isProfileActive(profileId)) return false;
   if (!lockManager.status(profileId).credentialConfigured) return false;
   lockManager.lock(profileId);
+  clearProfileReauth(profileId);
   lockProfileWindows(profileId);
   console.info(`Profile locked automatically (${reason})`);
   return true;
@@ -237,22 +273,43 @@ secureHandle('lock:lock', null, async (e, profileId) => {
   const state = lockManager.status(profileId);
   if (!state.credentialConfigured) throw new Error('Set a PIN or password before locking this profile.');
   const locked = lockManager.lock(profileId);
+  clearProfileReauth(profileId);
   lockProfileWindows(profileId);
   return locked;
 });
 secureHandle('lock:unlock', z.tuple([z.string().min(1).max(512)]), async (e, profileId, secret) => {
   const unlocked = lockManager.unlock(profileId, secret);
+  clearProfileReauth(profileId);
   const lockWindow = lockWindows.get(profileId);
   if (lockWindow && !lockWindow.isDestroyed()) lockWindow.close();
   showProfileWindows(profileId);
   return unlocked;
 });
+secureHandle('lock:reauth', z.tuple([z.string().min(1).max(512)]), async (e, profileId, secret) => {
+  if (lockManager.isLocked(profileId) || !lockManager.verifyCredential(profileId, secret)) {
+    const error = new Error('Credential is incorrect.');
+    error.code = 'LOCK_AUTH';
+    throw error;
+  }
+  reauthSessions.set(reauthKey(profileId, e.sender.id), Date.now() + 2 * 60 * 1000);
+  return { expiresAt: Date.now() + 2 * 60 * 1000 };
+});
 secureHandle('lock:credential:set', z.tuple([
   z.enum(['pin', 'password']),
   z.string().min(1).max(512),
   z.string().min(1).max(512).nullable().optional()
-]), async (e, profileId, type, secret, currentSecret) => lockManager.setCredential(profileId, type, secret, currentSecret || null));
-secureHandle('lock:credential:remove', z.tuple([z.string().min(1).max(512)]), async (e, profileId, currentSecret) => lockManager.removeCredential(profileId, currentSecret));
+]), async (e, profileId, type, secret, currentSecret) => {
+  if (lockManager.status(profileId).credentialConfigured) requireRecentReauth(profileId, e.sender.id);
+  const result = lockManager.setCredential(profileId, type, secret, currentSecret || null);
+  clearProfileReauth(profileId);
+  return result;
+});
+secureHandle('lock:credential:remove', z.tuple([z.string().min(1).max(512)]), async (e, profileId, currentSecret) => {
+  requireRecentReauth(profileId, e.sender.id);
+  const result = lockManager.removeCredential(profileId, currentSecret);
+  clearProfileReauth(profileId);
+  return result;
+});
 
 function handlePensRequest(request) {
   const url = new URL(request.url);
@@ -399,6 +456,7 @@ function createWindow(profileId = 'default') {
             const state = lockManager.status(currentProfileId);
             if (state.credentialConfigured && !lockManager.isLocked(currentProfileId)) {
               lockManager.lock(currentProfileId);
+              clearProfileReauth(currentProfileId);
               lockProfileWindows(currentProfileId);
             }
           } catch (error) {
@@ -556,6 +614,17 @@ secureHandle('profiles:update', z.tuple([z.object({
     }
   }
   return updated;
+});
+secureHandle('profiles:delete', z.tuple([z.string().max(32)]), async (e, profileId, targetProfileId) => {
+  requireRecentReauth(profileId, e.sender.id);
+  if (targetProfileId !== profileId) throw new Error('Reauthenticate from the profile being deleted.');
+  for (const win of getProfileWindows(profileId)) {
+    if (!win.isDestroyed()) win.close();
+  }
+  const lockWindow = lockWindows.get(profileId);
+  if (lockWindow && !lockWindow.isDestroyed()) lockWindow.close();
+  reauthSessions.delete(reauthKey(profileId, e.sender.id));
+  return profileManager.deleteProfile(profileId);
 });
 secureHandle('profiles:personal-details:get', z.tuple([z.string().url().max(2000)]), async (e, profileId, originUrl) => {
   const origin = new URL(originUrl).origin;

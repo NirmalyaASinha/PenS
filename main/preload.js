@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getCurrentProfile: () => ipcRenderer.invoke('profiles:get-current'),
   createProfile: (name, color, avatar) => ipcRenderer.invoke('profiles:create', name, color, avatar),
   updateProfile: (profile) => ipcRenderer.invoke('profiles:update', profile),
+  deleteProfile: (id) => ipcRenderer.invoke('profiles:delete', id),
   getPersonalDetails: (origin) => ipcRenderer.invoke('profiles:personal-details:get', origin),
   updatePersonalDetails: (details) => ipcRenderer.invoke('profiles:personal-details:update', details),
   openProfile: (id) => ipcRenderer.invoke('profiles:open', id),
@@ -38,6 +39,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   unlockProfile: (secret) => ipcRenderer.invoke('lock:unlock', secret),
   setLockCredential: (type, secret, currentSecret = null) => ipcRenderer.invoke('lock:credential:set', type, secret, currentSecret),
   removeLockCredential: (currentSecret) => ipcRenderer.invoke('lock:credential:remove', currentSecret),
+  reauthenticate: (secret) => ipcRenderer.invoke('lock:reauth', secret),
   fetchHomeFeed: (topic, kind) => ipcRenderer.invoke('home:fetch-feed', topic, kind),
   onSettingsLoaded: (callback) => ipcRenderer.on('settings-loaded', (e, settings) => callback(settings)),
 
