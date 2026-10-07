@@ -1953,7 +1953,8 @@ if (btnDownloads) {
 }
 
 if (btnMenu) {
-  btnMenu.addEventListener('click', () => {
+  btnMenu.addEventListener('click', (event) => {
+    event.stopPropagation();
     if (btnProfileMenu) btnProfileMenu.click();
   });
 }
