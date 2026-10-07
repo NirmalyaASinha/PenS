@@ -1,11 +1,11 @@
-# Releasing PenS
+# Releasing कलम
 
 ## Local dry release
 
 1. Update `version` in `package.json` and add release notes to `CHANGELOG.md`.
 2. Run `npm install` if dependencies changed.
 3. Run `npm run release:dry`.
-4. Verify `dist\PenS-Setup-<version>.exe`, `dist\PenS-Portable-<version>.exe`,
+4. Verify `dist\कलम-Setup-<version>.exe`, `dist\कलम-Portable-<version>.exe`,
    `dist\PenS-Setup-<version>.exe.blockmap`, `dist\latest.yml`, and
    `dist\SHA256SUMS.txt`.
 
@@ -20,6 +20,9 @@ After testing the dry build, commit the version and changelog, create the tag
 available to electron-builder. Upload the installer, blockmap, portable
 executable (if distributing it), `latest.yml`, and `SHA256SUMS.txt`. Never put
 tokens in source code.
+
+Executables larger than 100 MB must be uploaded as release assets or tracked
+with Git LFS. Do not commit large binaries as ordinary Git blobs.
 
 Installers upgrade in place because the app ID and NSIS GUID stay fixed. The
 uninstaller keeps `Documents\PenNotebook` by default.

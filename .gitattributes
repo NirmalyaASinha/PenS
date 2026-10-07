@@ -1,0 +1,2 @@
+dist/*-Setup-*.exe filter=lfs diff=lfs merge=lfs -text
+dist/*-Portable-*.exe filter=lfs diff=lfs merge=lfs -text
