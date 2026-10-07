@@ -1451,8 +1451,9 @@ function createTab(url = 'pens://home') {
               <section class="settings-card" id="data"><h2>Data and backup</h2><p class="settings-help">Export a portable copy of this profile. Keep backups in a trusted location.</p>
                 <div class="settings-actions"><button id="btn-export-profile-${tabId}" class="settings-secondary">Export profile (.penprofile)</button></div>
               </section>
-              <section class="settings-card" id="passwords"><h2>Passwords and autofill</h2><p class="settings-help">Saved passwords are stored encrypted and are never shown in this list.</p>
-                <div id="passwords-list-${tabId}" class="passwords-list">Loading...</div>
+              <section class="settings-card" id="passwords"><h2>Passwords and autofill</h2><p class="settings-help">Saved passwords are stored encrypted. Reauthenticate before viewing this list.</p>
+                <div class="settings-actions"><button id="btn-load-passwords-${tabId}" class="settings-secondary">Unlock password list</button></div>
+                <div id="passwords-list-${tabId}" class="passwords-list">Password list is locked.</div>
                 <div class="password-form"><input type="url" id="add-pass-url-${tabId}" placeholder="https://example.com" aria-label="Site URL"><input type="text" id="add-pass-user-${tabId}" placeholder="Username" aria-label="Username"><input type="password" id="add-pass-pass-${tabId}" placeholder="Password" aria-label="Password"><button id="btn-add-pass-${tabId}" class="settings-primary-button">Add password</button></div>
               </section>
               <section class="settings-card" id="about"><h2>About कलम</h2><p class="settings-help">A focused workspace for browsing, reading, writing, and organizing your ideas.</p>
@@ -1561,9 +1562,10 @@ function createTab(url = 'pens://home') {
       const renderPasswords = async () => {
         if (window.electronAPI && window.electronAPI.getPasswords) {
            const list = document.getElementById(`passwords-list-${tabId}`);
-           const passes = await window.electronAPI.getPasswords();
-           list.innerHTML = '';
-           passes.forEach(p => {
+           try {
+             const passes = await window.electronAPI.getPasswords();
+             list.innerHTML = '';
+             passes.forEach(p => {
               const div = document.createElement('div');
               div.style.cssText = 'padding: 8px; border-bottom: 1px solid #eee; display: flex; gap: 20px;';
               
@@ -1582,12 +1584,26 @@ function createTab(url = 'pens://home') {
               div.appendChild(userDiv);
               div.appendChild(passDiv);
               
-              list.appendChild(div);
-           });
-           if (passes.length === 0) list.innerHTML = 'No passwords saved yet.';
+                list.appendChild(div);
+             });
+             if (passes.length === 0) list.textContent = 'No passwords saved yet.';
+           } catch (error) {
+             list.textContent = error.message || 'Unable to load saved passwords.';
+             throw error;
+           }
         }
       };
-      renderPasswords();
+      document.getElementById(`btn-load-passwords-${tabId}`).onclick = async () => {
+        const credential = window.prompt('Enter your current PIN or password to view saved passwords.');
+        if (!credential) return;
+        const list = document.getElementById(`passwords-list-${tabId}`);
+        try {
+          await window.electronAPI.reauthenticate(credential);
+          await renderPasswords();
+        } catch (error) {
+          list.textContent = error.message || 'Unable to unlock the password list.';
+        }
+      };
       
       document.getElementById(`btn-add-pass-${tabId}`).onclick = async () => {
         const url = document.getElementById(`add-pass-url-${tabId}`).value;
@@ -1595,7 +1611,7 @@ function createTab(url = 'pens://home') {
         const pass = document.getElementById(`add-pass-pass-${tabId}`).value;
         if (url && user && pass) {
           await window.electronAPI.addPassword(url, user, pass);
-          renderPasswords();
+          renderPasswords().catch(() => {});
         }
       };
 

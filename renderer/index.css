@@ -1264,6 +1264,42 @@ webview {
   font-size: 24px;
 }
 
+/* These final rules intentionally override the older legacy Home styles above. */
+.home-container .home-left {
+  flex: 0 0 40% !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.home-container .home-right {
+  flex: 1 1 60% !important;
+  justify-content: flex-start !important;
+  overflow-y: auto !important;
+  box-sizing: border-box !important;
+}
+
+.home-container .home-left > h3,
+.home-container .home-left > .home-feed-panel {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.home-container .home-bookmarks-grid {
+  align-items: start;
+  justify-items: start;
+}
+
+@media (max-width: 700px) {
+  .home-container .home-left,
+  .home-container .home-right {
+    width: 100%;
+    flex: none !important;
+  }
+}
+
 .home-title {
   color: #ea4335;
   font-family: 'Comic Sans MS', 'Chalkboard SE', cursive, sans-serif;
