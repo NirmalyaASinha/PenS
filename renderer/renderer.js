@@ -970,6 +970,73 @@ function createTab(url = 'pens://home') {
       });
 
       if (window.electronAPI) {
+        const topicInput = document.getElementById(`home-feed-topic-${tabId}`);
+        const newsList = document.getElementById(`home-news-list-${tabId}`);
+        const jobsList = document.getElementById(`home-jobs-list-${tabId}`);
+        const savedSettings = await window.electronAPI.getSettings().catch(() => ({}));
+        topicInput.value = savedSettings.newsTopic || 'technology';
+        const parseFeed = (xml) => {
+          const doc = new DOMParser().parseFromString(xml, 'text/xml');
+          return Array.from(doc.querySelectorAll('item')).slice(0, 6).map(item => ({
+            title: item.querySelector('title')?.textContent?.trim() || 'Untitled',
+            link: item.querySelector('link')?.textContent?.trim() || '',
+            date: item.querySelector('pubDate')?.textContent?.trim() || ''
+          })).filter(item => /^https?:\/\//i.test(item.link));
+        };
+        const renderFeed = (list, items) => {
+          list.replaceChildren();
+          if (!items.length) {
+            const empty = document.createElement('p');
+            empty.className = 'home-feed-empty';
+            empty.textContent = 'No matching results.';
+            list.appendChild(empty);
+            return;
+          }
+          items.forEach(item => {
+            const card = document.createElement('a');
+            card.className = 'home-feed-item';
+            card.href = item.link;
+            card.target = '_blank';
+            card.rel = 'noopener noreferrer';
+            const title = document.createElement('strong');
+            title.textContent = item.title;
+            const date = document.createElement('small');
+            date.textContent = item.date ? new Date(item.date).toLocaleDateString() : 'Latest';
+            card.append(title, date);
+            list.appendChild(card);
+          });
+        };
+        const setFeedMessage = (list, message) => {
+          list.replaceChildren();
+          const empty = document.createElement('p');
+          empty.className = 'home-feed-empty';
+          empty.textContent = message;
+          list.appendChild(empty);
+        };
+        const loadFeed = async (kind, target) => {
+          const topic = topicInput.value.trim();
+          if (!topic) {
+            setFeedMessage(target, 'Enter a topic first.');
+            return;
+          }
+          setFeedMessage(target, 'Loading...');
+          try {
+            const xml = await window.electronAPI.fetchHomeFeed(topic, kind);
+            renderFeed(target, parseFeed(xml));
+          } catch (error) {
+            console.error('Unable to load home feed:', error);
+            setFeedMessage(target, 'Feed unavailable. Check your connection and try again.');
+          }
+        };
+        document.getElementById(`home-feed-news-${tabId}`).onclick = () => loadFeed('news', newsList);
+        document.getElementById(`home-feed-jobs-${tabId}`).onclick = () => loadFeed('jobs', jobsList);
+        document.getElementById(`home-feed-refresh-${tabId}`).onclick = () => {
+          loadFeed('news', newsList);
+          loadFeed('jobs', jobsList);
+        };
+        loadFeed('news', newsList);
+        loadFeed('jobs', jobsList);
+
         if (window.electronAPI.getUsername) {
           window.electronAPI.getUsername().then(username => {
             const hour = new Date().getHours();

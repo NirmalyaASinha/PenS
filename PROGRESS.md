@@ -22,6 +22,7 @@ Updated: 2026-10-07
 - Added one-time recovery keys (stored as salted digests), two-minute main-process reauthentication, and guards for password reveal, profile export/deletion, and lock changes.
 - Renamed the user-facing project and packaged application to कलम while retaining the stable internal app ID and pens:// protocol.
 - Added an explicit Windows ICO generated from LOGO.png so packaged executable and shortcut icons cannot fall back to Electron's atom icon.
+- Restored the active Home news and jobs feed loader so feed panels no longer remain stuck on Loading.
 - Enabled usable profile-lock controls in Settings for creating, changing, and removing a PIN/password, with one-time recovery-key display; Windows Hello remains explicitly unavailable until native integration exists.
 - Replaced the About placeholder notice with a feature overview covering browsing, PDF markup, ink, organization, protection, and feeds.
 - Rebuilt the unsigned RC installer and portable artifact after the latest changes.
@@ -32,7 +33,7 @@ Updated: 2026-10-07
 - Electron: `33.4.11`
 - electron-builder: `25.1.8`
 - App ID: `com.nirmalyasinha.pens`
-- Latest commit: `81f1bce`
+- Latest commit: pending
 - Build artifacts are unsigned because no Authenticode certificate is configured.
 
 ## Remaining release blockers
