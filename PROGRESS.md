@@ -21,6 +21,7 @@ Updated: 2026-10-07
 - Fixed the lock-state tampering bypass with a safeStorage-protected HMAC integrity envelope and fail-closed verification.
 - Added one-time recovery keys (stored as salted digests), two-minute main-process reauthentication, and guards for password reveal, profile export/deletion, and lock changes.
 - Renamed the user-facing project and packaged application to कलम while retaining the stable internal app ID and pens:// protocol.
+- Enabled usable profile-lock controls in Settings for creating, changing, and removing a PIN/password, with one-time recovery-key display; Windows Hello remains explicitly unavailable until native integration exists.
 - Rebuilt the unsigned RC installer and portable artifact after the latest changes.
 
 ## Current release status

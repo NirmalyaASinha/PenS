@@ -1339,7 +1339,19 @@ function createTab(url = 'pens://home') {
                 <div id="passwords-list-${tabId}" class="passwords-list">Loading...</div>
                 <div class="password-form"><input type="url" id="add-pass-url-${tabId}" placeholder="https://example.com" aria-label="Site URL"><input type="text" id="add-pass-user-${tabId}" placeholder="Username" aria-label="Username"><input type="password" id="add-pass-pass-${tabId}" placeholder="Password" aria-label="Password"><button id="btn-add-pass-${tabId}" class="settings-primary-button">Add password</button></div>
               </section>
-              <section class="settings-card" id="about"><h2>About कलम</h2><p class="settings-help">कलम browser, notebook, PDF reader and ink workspace.</p><div class="settings-status"><span>Profile lock</span><strong>Coming soon</strong></div><div class="settings-status"><span>Windows Hello</span><strong>Coming soon</strong></div></section>
+              <section class="settings-card" id="about"><h2>About कलम</h2><p class="settings-help">कलम browser, notebook, PDF reader and ink workspace.</p>
+                <div class="settings-status"><span>Profile lock</span><strong id="lock-status-${tabId}">Checking...</strong></div>
+                <div class="lock-settings-form">
+                  <select id="lock-type-${tabId}" aria-label="Lock credential type"><option value="pin">PIN (6+ digits)</option><option value="password">Password (8+ characters)</option></select>
+                  <input id="lock-secret-${tabId}" type="password" placeholder="New PIN or password" autocomplete="new-password">
+                  <input id="lock-current-${tabId}" type="password" placeholder="Current credential (if changing)" autocomplete="current-password">
+                  <button id="btn-set-lock-${tabId}" class="settings-primary-button">Set or change lock</button>
+                  <button id="btn-remove-lock-${tabId}" class="settings-secondary">Remove lock</button>
+                  <p id="lock-settings-status-${tabId}" class="settings-help" role="status"></p>
+                </div>
+                <div class="settings-status"><span>Windows Hello</span><strong>Not available yet</strong></div>
+                <p class="settings-help">Windows Hello requires a native Windows credential provider integration; कलम does not claim support until that secure integration is available.</p>
+              </section>
             </main>
           </div>
           <div class="settings-footer"><button id="btn-save-settings-${tabId}" class="settings-primary-button">Save settings</button><span id="settings-save-status-${tabId}" role="status"></span></div>
@@ -1374,6 +1386,46 @@ function createTab(url = 'pens://home') {
           await window.electronAPI.saveSettings(newSettings);
           applyTheme(newSettings.theme);
           alert('Settings saved!');
+        };
+
+        const lockStatus = document.getElementById(`lock-status-${tabId}`);
+        const lockMessage = document.getElementById(`lock-settings-status-${tabId}`);
+        const refreshLockStatus = async () => {
+          const state = await window.electronAPI.getLockState();
+          lockStatus.textContent = state.credentialConfigured ? 'Enabled' : 'Not configured';
+          return state;
+        };
+        await refreshLockStatus();
+        document.getElementById(`btn-set-lock-${tabId}`).onclick = async () => {
+          const type = document.getElementById(`lock-type-${tabId}`).value;
+          const secret = document.getElementById(`lock-secret-${tabId}`).value;
+          const current = document.getElementById(`lock-current-${tabId}`).value || null;
+          try {
+            const currentState = await window.electronAPI.getLockState();
+            if (currentState.credentialConfigured) await window.electronAPI.reauthenticate(current);
+            const result = await window.electronAPI.setLockCredential(type, secret, current);
+            lockMessage.textContent = result.recoveryKey
+              ? `Lock enabled. Save this one-time recovery key now: ${result.recoveryKey}`
+              : 'Lock credential updated.';
+            document.getElementById(`lock-secret-${tabId}`).value = '';
+            document.getElementById(`lock-current-${tabId}`).value = '';
+            await refreshLockStatus();
+          } catch (error) {
+            lockMessage.textContent = error.message || 'Unable to update the lock.';
+          }
+        };
+        document.getElementById(`btn-remove-lock-${tabId}`).onclick = async () => {
+          const current = document.getElementById(`lock-current-${tabId}`).value;
+          if (!current || !confirm('Remove the profile lock?')) return;
+          try {
+            await window.electronAPI.reauthenticate(current);
+            await window.electronAPI.removeLockCredential(current);
+            lockMessage.textContent = 'Profile lock removed.';
+            document.getElementById(`lock-current-${tabId}`).value = '';
+            await refreshLockStatus();
+          } catch (error) {
+            lockMessage.textContent = error.message || 'Unable to remove the lock.';
+          }
         };
       }
       

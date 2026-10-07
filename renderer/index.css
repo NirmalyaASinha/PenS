@@ -237,6 +237,27 @@
   cursor: wait;
 }
 
+.lock-settings-form {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.lock-settings-form input,
+.lock-settings-form select {
+  min-height: 40px;
+  padding: 9px 11px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-color);
+}
+
+.lock-settings-form .settings-secondary,
+.lock-settings-form .settings-primary-button {
+  width: fit-content;
+}
+
 .settings-help {
   color: var(--muted-text) !important;
   font-size: 13px;
