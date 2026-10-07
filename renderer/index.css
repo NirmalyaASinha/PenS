@@ -94,7 +94,33 @@
 .settings-card h2 { margin: 0 0 6px; font-size: 19px; }
 .settings-card label:not(.settings-toggle) { display: block; margin: 20px 0 7px; font-size: 13px; font-weight: 600; }
 .settings-card select { width: 100%; min-height: 42px; padding: 9px 12px; }
-.settings-help { color: var(--muted-text) !important; font-size: 13px; line-height: 1.5; margin: 0 0 14px; }
+.settings-help { color: var(--muted-text) !important;
+}
+
+.home-container.has-home-background {
+background-size: cover;
+background-position: center;
+background-attachment: local;
+}
+
+.home-container.has-home-background .home-left,
+.home-container.has-home-background .home-right {
+background: color-mix(in srgb, var(--bg-color) 88%, transparent) !important;
+}
+
+:root[data-theme="dark"] .home-container [id^="home-browse-card-"] {
+background: var(--surface) !important;
+border: 1px solid var(--border-color);
+}
+
+:root[data-theme="dark"] .home-container [id^="home-browse-card-"] h1 {
+color: var(--accent-color) !important;
+}
+
+:root[data-theme="dark"] .home-container .home-left h3,
+:root[data-theme="dark"] .home-container .home-right h3,
+:root[data-theme="dark"] .home-container .home-right p {
+color: var(--text-color) !important; font-size: 13px; line-height: 1.5; margin: 0 0 14px; }
 .settings-toggle { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
 .settings-toggle input { margin-top: 3px; accent-color: var(--accent-color); }
 .settings-toggle span { display: grid; gap: 4px; }
@@ -184,6 +210,33 @@
 .settings-page label,
 .settings-page p {
   color: var(--text-color) !important;
+}
+
+/* Final dark Home overrides must win over the legacy inline-style compatibility rules above. */
+:root[data-theme="dark"] .home-container {
+  background: radial-gradient(circle at 82% 8%, rgba(73, 104, 190, .18), transparent 34%), var(--bg-color) !important;
+  color: var(--text-color) !important;
+}
+
+:root[data-theme="dark"] .home-container .home-left,
+:root[data-theme="dark"] .home-container .home-right {
+  background: transparent !important;
+}
+
+:root[data-theme="dark"] .home-container [id^="home-browse-card-"] {
+  background: linear-gradient(145deg, #30343d, #26292f) !important;
+  border: 1px solid #414855 !important;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .25);
+}
+
+:root[data-theme="dark"] .home-container [id^="home-browse-card-"] h1 {
+  color: #d7e3ff !important;
+}
+
+:root[data-theme="dark"] .home-container .home-search-capsule {
+  background: #1b1e24 !important;
+  border-color: #4a5260 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .24) !important;
 }
 
 .settings-page > div {
@@ -1547,4 +1600,31 @@ webview {
 }
 .modal-btn-secondary:hover {
   background: #e8eaed;
+}
+
+/* Keep the refreshed dark Home treatment after legacy compatibility styles. */
+:root[data-theme="dark"] .home-container {
+  background: radial-gradient(circle at 82% 8%, rgba(73, 104, 190, .18), transparent 34%), var(--bg-color) !important;
+  color: var(--text-color) !important;
+}
+
+:root[data-theme="dark"] .home-container .home-left,
+:root[data-theme="dark"] .home-container .home-right {
+  background: transparent !important;
+}
+
+:root[data-theme="dark"] .home-container [id^="home-browse-card-"] {
+  background: linear-gradient(145deg, #30343d, #26292f) !important;
+  border: 1px solid #414855 !important;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .25);
+}
+
+:root[data-theme="dark"] .home-container [id^="home-browse-card-"] h1 {
+  color: #d7e3ff !important;
+}
+
+:root[data-theme="dark"] .home-container .home-search-capsule {
+  background: #1b1e24 !important;
+  border-color: #4a5260 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .24) !important;
 }

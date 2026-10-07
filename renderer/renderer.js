@@ -63,6 +63,14 @@ function applyTheme(theme) {
   document.documentElement.dataset.theme = theme || 'system';
 }
 
+function applyHomeBackground(tabId, settings = {}) {
+  const home = document.getElementById(`home-container-${tabId}`);
+  if (!home) return;
+  const image = typeof settings.homeBackgroundImage === 'string' ? settings.homeBackgroundImage : '';
+  home.classList.toggle('has-home-background', Boolean(image));
+  home.style.backgroundImage = image ? `url("${image}")` : '';
+}
+
 function profileDisplayName(profile) {
   return String(profile?.displayName || profile?.name || 'Default').trim() || 'Default';
 }
@@ -803,7 +811,7 @@ function createTab(url = 'pens://home') {
   
   if (url === 'pens://home') {
     viewContainer.innerHTML = `
-      <div class="home-container" style="display: flex; height: 100%; font-family: 'Segoe UI', sans-serif; background: #fff;">
+      <div class="home-container" id="home-container-${tabId}" style="display: flex; height: 100%; font-family: 'Segoe UI', sans-serif; background: #fff;">
         <div class="home-left" style="flex: 1; padding: 40px; border-right: 1px solid #eee; display: flex; flex-direction: column;">
           <div style="background: #f8f9fa; border-radius: 16px; padding: 30px; text-align: center; transition: transform 0.2s;" id="home-browse-card-${tabId}">
             <h1 style="margin: 0 0 20px 0; font-size: 32px; color: #1a73e8; font-weight: 600;">Browse the Web</h1>
@@ -1006,6 +1014,7 @@ function createTab(url = 'pens://home') {
         const newsList = document.getElementById(`home-news-list-${tabId}`);
         const jobsList = document.getElementById(`home-jobs-list-${tabId}`);
         let savedSettings = await window.electronAPI.getSettings().catch(() => ({}));
+        applyHomeBackground(tabId, savedSettings);
         topicInput.value = savedSettings.newsTopic || 'technology';
         const filterStatus = document.getElementById(`home-feed-filter-status-${tabId}`);
         const parseFeed = (xml) => {
@@ -1528,6 +1537,8 @@ function createTab(url = 'pens://home') {
                 <label for="setting-theme-${tabId}">Theme</label>
                 <select id="setting-theme-${tabId}"><option value="system">Use system setting</option><option value="light">Light</option><option value="dark">Dark</option></select>
                 <label class="settings-toggle"><input type="checkbox" id="setting-performance-${tabId}"><span><strong>Performance mode</strong><small>Uses lower PDF render quality and fewer visual effects for smoother scrolling.</small></span></label>
+                <div class="settings-actions"><button id="btn-home-background-${tabId}" class="settings-secondary">Choose Home background</button><button id="btn-clear-home-background-${tabId}" class="settings-secondary">Remove background</button></div>
+                <p id="home-background-status-${tabId}" class="settings-help" role="status">No custom Home background selected.</p>
               </section>
               <section class="settings-card" id="privacy"><h2>Privacy and Shields</h2><p class="settings-help">Block known trackers and clear browsing data for this profile.</p>
                 <label class="settings-toggle"><input type="checkbox" id="setting-shields-${tabId}"><span><strong>Enable Shields</strong><small>Blocks known trackers where supported.</small></span></label>
@@ -1583,9 +1594,31 @@ function createTab(url = 'pens://home') {
 
     setTimeout(async () => {
       if (window.electronAPI && window.electronAPI.getSettings) {
-        const settings = await window.electronAPI.getSettings();
+        let settings = await window.electronAPI.getSettings();
         document.getElementById(`setting-theme-${tabId}`).value = settings.theme || 'system';
         document.getElementById(`setting-performance-${tabId}`).checked = settings.performanceMode === true;
+        const homeBackgroundStatus = document.getElementById(`home-background-status-${tabId}`);
+        if (settings.homeBackgroundImage) homeBackgroundStatus.textContent = 'Custom Home background selected.';
+        document.getElementById(`btn-home-background-${tabId}`).onclick = async () => {
+          try {
+            const image = await window.electronAPI.openHomeBackground();
+            if (!image) return;
+            const updatedSettings = { ...settings, homeBackgroundImage: image };
+            await window.electronAPI.saveSettings(updatedSettings);
+            settings = updatedSettings;
+            applyHomeBackground(tabId, updatedSettings);
+            homeBackgroundStatus.textContent = 'Custom Home background selected.';
+          } catch (error) {
+            homeBackgroundStatus.textContent = error.message || 'Unable to select background.';
+          }
+        };
+        document.getElementById(`btn-clear-home-background-${tabId}`).onclick = async () => {
+          const updatedSettings = { ...settings, homeBackgroundImage: '' };
+          await window.electronAPI.saveSettings(updatedSettings);
+          settings = updatedSettings;
+          applyHomeBackground(tabId, updatedSettings);
+          homeBackgroundStatus.textContent = 'No custom Home background selected.';
+        };
         document.getElementById(`setting-shields-${tabId}`).checked = settings.shieldsEnabled !== false;
         document.getElementById(`setting-lock-idle-${tabId}`).value = String(settings.lockIdleMinutes || 0);
         document.getElementById(`setting-lock-minimize-${tabId}`).checked = settings.lockOnMinimize === true;
@@ -1596,6 +1629,7 @@ function createTab(url = 'pens://home') {
           const newSettings = {
             theme: document.getElementById(`setting-theme-${tabId}`).value,
             performanceMode: document.getElementById(`setting-performance-${tabId}`).checked,
+            homeBackgroundImage: settings.homeBackgroundImage || '',
             shieldsEnabled: document.getElementById(`setting-shields-${tabId}`).checked,
             lockIdleMinutes: Number(document.getElementById(`setting-lock-idle-${tabId}`).value),
             lockOnMinimize: document.getElementById(`setting-lock-minimize-${tabId}`).checked,

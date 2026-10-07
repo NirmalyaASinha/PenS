@@ -506,6 +506,23 @@ secureHandle('dialog:openPdf', null, async (e, profileId) => {
   return canceled ? null : filePaths[0];
 });
 
+secureHandle('dialog:open-home-background', null, async (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  const result = await dialog.showOpenDialog(win, {
+    title: 'Choose Home background',
+    properties: ['openFile'],
+    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] }]
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+  const filePath = result.filePaths[0];
+  const stats = fs.statSync(filePath);
+  if (stats.size > 8 * 1024 * 1024) throw new Error('Background image must be 8 MB or smaller.');
+  const extension = path.extname(filePath).toLowerCase();
+  const mime = extension === '.png' ? 'image/png'
+    : extension === '.webp' ? 'image/webp' : 'image/jpeg';
+  return `data:${mime};base64,${fs.readFileSync(filePath).toString('base64')}`;
+});
+
 secureHandle('pdf:read', z.tuple([z.string().max(4096)]), async (e, profileId, rawPath) => {
   try {
     let cleanPath = rawPath;

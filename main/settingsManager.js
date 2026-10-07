@@ -9,6 +9,7 @@ const defaultSettings = {
   startupBehavior: 'new-tab',
   defaultZoom: 1.0,
   performanceMode: false,
+  homeBackgroundImage: '',
   shieldsEnabled: true,
   lockIdleMinutes: 0,
   lockOnMinimize: false,

@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   openPdf: () => ipcRenderer.invoke('dialog:openPdf'),
+  openHomeBackground: () => ipcRenderer.invoke('dialog:open-home-background'),
   readPdf: (filePath) => ipcRenderer.invoke('pdf:read', filePath),
   exportPdf: (sourcePath, annotations, strokes) => ipcRenderer.invoke('pdf:export', sourcePath, annotations, strokes),
   saveNotes: (id, data) => ipcRenderer.invoke('store:save', id, data),

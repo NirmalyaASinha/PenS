@@ -31,6 +31,7 @@ Updated: 2026-10-07
 - Prevented repeated password reauthentication errors on Settings load; password lists now stay locked until the user explicitly reauthenticates, and final Home CSS overrides prevent legacy rules from changing pane alignment.
 - Added a Focus button beside Home feed Refresh that opens a dedicated Focus tab with expanded News and Jobs & internships results, saved topic filters, and refresh controls.
 - Updated Home greetings to use the active कलम profile name instead of the Windows account name, and fixed Home search text and placeholder contrast in dark theme.
+- Added a profile-saved Home background image picker with remove/reset control, and improved dark-theme Home card contrast.
 - Fixed the live Home Focus button binding; it now opens the dedicated Focus tab instead of relying on the inactive legacy loader.
 - Compacted the Home news panel into bounded two-column lists and added a visible, persisted topic filter with Save filter and reload controls.
 - Updated README and release documentation for current कलम features and artifacts; large Windows executables are tracked with Git LFS because GitHub rejects ordinary blobs over 100 MB.
