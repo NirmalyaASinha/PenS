@@ -44,7 +44,9 @@ class LockManager {
   }
 
   canonicalStates(states) {
-    return JSON.stringify(states, Object.keys(states).sort());
+    const ordered = {};
+    for (const key of Object.keys(states).sort()) ordered[key] = states[key];
+    return JSON.stringify(ordered);
   }
 
   getIntegrityKey(protectedKey) {
