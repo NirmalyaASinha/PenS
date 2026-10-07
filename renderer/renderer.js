@@ -67,6 +67,16 @@ function profileDisplayName(profile) {
   return String(profile?.displayName || profile?.name || 'Default').trim() || 'Default';
 }
 
+async function updateHomeGreeting(tabId) {
+  const element = document.getElementById(`home-greeting-${tabId}`);
+  if (!element) return;
+  const profile = await window.electronAPI.getCurrentProfile?.().catch(() => null);
+  const name = profileDisplayName(profile);
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  element.textContent = `${greeting}, ${name}`;
+}
+
 function readableTextColor(hex) {
   const value = String(hex || '#1a73e8').slice(1);
   const red = parseInt(value.slice(0, 2), 16);
@@ -1076,13 +1086,7 @@ function createTab(url = 'pens://home') {
         loadFeed('news', newsList);
         loadFeed('jobs', jobsList);
 
-        if (window.electronAPI.getUsername) {
-          window.electronAPI.getUsername().then(username => {
-            const hour = new Date().getHours();
-            const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-            document.getElementById(`home-greeting-${tabId}`).textContent = `${greeting}, ${username}`;
-          });
-        }
+        updateHomeGreeting(tabId).catch(error => console.error('Unable to update Home greeting:', error));
         
         if (window.electronAPI.getBookmarks) {
            window.electronAPI.getBookmarks().then(bookmarks => {
@@ -1941,14 +1945,7 @@ async function reloadActiveTab(opts = {}) {
     const tabId = tab.id;
     if (tab.url === 'pens://home') {
       if (window.electronAPI) {
-        if (window.electronAPI.getUsername) {
-          window.electronAPI.getUsername().then(username => {
-            const hour = new Date().getHours();
-            const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-            const el = document.getElementById(`home-greeting-${tabId}`);
-            if (el) el.textContent = `${greeting}, ${username}`;
-          });
-        }
+        updateHomeGreeting(tabId).catch(error => console.error('Unable to update Home greeting:', error));
         if (window.electronAPI.getBookmarks) {
           window.electronAPI.getBookmarks().then(bookmarks => {
             const bookmarksList = document.getElementById(`home-bookmarks-${tabId}`);

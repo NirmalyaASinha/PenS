@@ -1453,6 +1453,24 @@ webview {
   line-height: 1.4;
 }
 
+/* Final Home theme overrides: the Home markup still has legacy inline colors. */
+.home-container .home-search-capsule {
+  background: var(--surface) !important;
+  border-color: var(--border-color) !important;
+}
+
+.home-container .home-search-capsule input,
+.home-container .home-search-capsule input:focus {
+  color: var(--text-color) !important;
+  background: transparent !important;
+  caret-color: var(--accent-color) !important;
+}
+
+.home-container .home-search-capsule input::placeholder {
+  color: var(--muted-text) !important;
+  opacity: 1 !important;
+}
+
 .modal-body {
   padding: 0 24px 16px 24px;
 }
