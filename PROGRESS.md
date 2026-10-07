@@ -34,6 +34,7 @@ Updated: 2026-10-07
 - Added a profile-saved Home background image picker with remove/reset control, and improved dark-theme Home card contrast.
 - Hardened PDF rendering against oversized canvas clipping and paused active PDF work during profile locking so lock screens do not compete with render tasks; PDF viewers resume after unlock.
 - Added a guarded lock transition path to avoid duplicate automatic/keyboard lock races and duplicate lock windows.
+- Fixed a module-scope error in lock reauthentication cleanup that could leave lock operations partially completed, and changed Settings save feedback to inline non-blocking status instead of a modal alert.
 - Fixed the live Home Focus button binding; it now opens the dedicated Focus tab instead of relying on the inactive legacy loader.
 - Compacted the Home news panel into bounded two-column lists and added a visible, persisted topic filter with Save filter and reload controls.
 - Updated README and release documentation for current कलम features and artifacts; large Windows executables are tracked with Git LFS because GitHub rejects ordinary blobs over 100 MB.

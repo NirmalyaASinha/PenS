@@ -1626,6 +1626,8 @@ function createTab(url = 'pens://home') {
         document.getElementById(`setting-lock-startup-${tabId}`).checked = settings.lockOnStartup === true;
 
         document.getElementById(`btn-save-settings-${tabId}`).onclick = async () => {
+          const saveButton = document.getElementById(`btn-save-settings-${tabId}`);
+          const saveStatus = document.getElementById(`settings-save-status-${tabId}`);
           const newSettings = {
             theme: document.getElementById(`setting-theme-${tabId}`).value,
             performanceMode: document.getElementById(`setting-performance-${tabId}`).checked,
@@ -1636,9 +1638,17 @@ function createTab(url = 'pens://home') {
             lockOnSystemLock: document.getElementById(`setting-lock-system-${tabId}`).checked,
             lockOnStartup: document.getElementById(`setting-lock-startup-${tabId}`).checked
           };
-          await window.electronAPI.saveSettings(newSettings);
-          applyTheme(newSettings.theme);
-          alert('Settings saved!');
+          saveButton.disabled = true;
+          saveStatus.textContent = 'Saving...';
+          try {
+            settings = await window.electronAPI.saveSettings(newSettings);
+            applyTheme(settings.theme);
+            saveStatus.textContent = 'Settings saved.';
+          } catch (error) {
+            saveStatus.textContent = error.message || 'Unable to save settings.';
+          } finally {
+            saveButton.disabled = false;
+          }
         };
 
         const lockStatus = document.getElementById(`lock-status-${tabId}`);

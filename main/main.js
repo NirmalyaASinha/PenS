@@ -28,12 +28,6 @@ async function safeOpenExternal(urlStr) {
       return true;
     }
 
-    function clearProfileReauth(profileId) {
-      const prefix = `${profileId}:`;
-      for (const key of reauthSessions.keys()) {
-        if (key.startsWith(prefix)) reauthSessions.delete(key);
-      }
-    }
     return false;
   } catch (err) {
     return false;
@@ -56,6 +50,13 @@ const REAUTH_REQUIRED = new Set(['passwords:get', 'sync:export', 'profiles:delet
 const profileActivity = new Map();
 const idleTimers = new Map();
 const lockingProfiles = new Set();
+
+function clearProfileReauth(profileId) {
+  const prefix = `${profileId}:`;
+  for (const key of reauthSessions.keys()) {
+    if (key.startsWith(prefix)) reauthSessions.delete(key);
+  }
+}
 
 // Task 4.1: Certificate errors
 const trustedCerts = new Map();
