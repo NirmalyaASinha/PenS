@@ -16,7 +16,7 @@
     "appId": "com.nirmalyasinha.pens",
     "productName": "कलम",
     "copyright": "Copyright © 2026 Nirmalya Sinha",
-    "icon": "LOGO.png",
+    "icon": "LOGO.ico",
     "afterPack": "./afterPack.js",
     "asar": true,
     "asarUnpack": [

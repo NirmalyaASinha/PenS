@@ -184,7 +184,7 @@ function createLockWindow(profileId) {
     minHeight: 460,
     resizable: false,
     title: 'कलम',
-    icon: path.join(__dirname, '..', 'LOGO.png'),
+    icon: path.join(__dirname, '..', 'LOGO.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -432,7 +432,7 @@ function createWindow(profileId = 'default') {
       color: profile.color,
       symbolColor: '#ffffff'
     },
-    icon: path.join(__dirname, '..', 'LOGO.png'),
+    icon: path.join(__dirname, '..', 'LOGO.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
