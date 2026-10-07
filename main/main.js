@@ -775,6 +775,7 @@ if (!gotTheLock) {
 
 
 app.whenReady().then(() => {
+  console.info('GPU feature status:', app.getGPUFeatureStatus());
   lockManager.initialize();
   app.setAppUserModelId('com.nirmalyasinha.pens');
   setupPensProtocol(session.defaultSession);

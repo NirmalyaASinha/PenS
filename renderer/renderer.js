@@ -684,6 +684,8 @@ function createPdfTab(filePath) {
   if (window.PDFViewer) {
     tabObj.pdfViewer = new window.PDFViewer(viewContainer, filePath, fileUrl);
     tabObj.pdfViewer.ready.then(async () => {
+      const settings = await window.electronAPI.getSettings().catch(() => ({}));
+      tabObj.pdfViewer.setPerformanceMode(settings.performanceMode === true);
       const saved = await window.electronAPI.loadNotes(filePath);
       if (saved && saved.source && saved.source.type === 'pdf') {
         tabObj.pdfViewer.setAnnotations(saved.annotations);
@@ -693,6 +695,9 @@ function createPdfTab(filePath) {
     setTimeout(() => {
       if (window.PDFViewer && !tabObj.pdfViewer) {
         tabObj.pdfViewer = new window.PDFViewer(viewContainer, filePath, fileUrl);
+        window.electronAPI.getSettings().then(settings => {
+          tabObj.pdfViewer.setPerformanceMode(settings.performanceMode === true);
+        }).catch(() => {});
       }
     }, 100);
   }
@@ -1385,6 +1390,7 @@ function createTab(url = 'pens://home') {
               <section class="settings-card" id="appearance"><h2>Appearance</h2><p class="settings-help">Choose how कलम looks across this profile.</p>
                 <label for="setting-theme-${tabId}">Theme</label>
                 <select id="setting-theme-${tabId}"><option value="system">Use system setting</option><option value="light">Light</option><option value="dark">Dark</option></select>
+                <label class="settings-toggle"><input type="checkbox" id="setting-performance-${tabId}"><span><strong>Performance mode</strong><small>Uses lower PDF render quality and fewer visual effects for smoother scrolling.</small></span></label>
               </section>
               <section class="settings-card" id="privacy"><h2>Privacy and Shields</h2><p class="settings-help">Block known trackers and clear browsing data for this profile.</p>
                 <label class="settings-toggle"><input type="checkbox" id="setting-shields-${tabId}"><span><strong>Enable Shields</strong><small>Blocks known trackers where supported.</small></span></label>
@@ -1441,6 +1447,7 @@ function createTab(url = 'pens://home') {
       if (window.electronAPI && window.electronAPI.getSettings) {
         const settings = await window.electronAPI.getSettings();
         document.getElementById(`setting-theme-${tabId}`).value = settings.theme || 'system';
+        document.getElementById(`setting-performance-${tabId}`).checked = settings.performanceMode === true;
         document.getElementById(`setting-shields-${tabId}`).checked = settings.shieldsEnabled !== false;
         document.getElementById(`setting-lock-idle-${tabId}`).value = String(settings.lockIdleMinutes || 0);
         document.getElementById(`setting-lock-minimize-${tabId}`).checked = settings.lockOnMinimize === true;
@@ -1450,6 +1457,7 @@ function createTab(url = 'pens://home') {
         document.getElementById(`btn-save-settings-${tabId}`).onclick = async () => {
           const newSettings = {
             theme: document.getElementById(`setting-theme-${tabId}`).value,
+            performanceMode: document.getElementById(`setting-performance-${tabId}`).checked,
             shieldsEnabled: document.getElementById(`setting-shields-${tabId}`).checked,
             lockIdleMinutes: Number(document.getElementById(`setting-lock-idle-${tabId}`).value),
             lockOnMinimize: document.getElementById(`setting-lock-minimize-${tabId}`).checked,
