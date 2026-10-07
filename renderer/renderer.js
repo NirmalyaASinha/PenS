@@ -816,7 +816,7 @@ function createTab(url = 'pens://home') {
           <h3 style="margin-top: 40px; color: #333;">Bookmarks</h3>
           <div id="home-bookmarks-${tabId}" class="home-bookmarks-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 16px; margin-top: 16px;"></div>
           <section class="home-feed-panel" id="home-feed-${tabId}">
-            <div class="home-feed-header"><div><h3>Latest for you</h3><p>Current headlines and opportunities.</p></div><button id="home-feed-refresh-${tabId}" class="home-feed-refresh">Refresh</button></div>
+            <div class="home-feed-header"><div><h3>Latest for you</h3><p>Current headlines and opportunities.</p></div><div class="home-feed-header-actions"><button id="home-feed-focus-${tabId}" class="home-feed-focus" title="Open focused news and jobs view">◉ Focus</button><button id="home-feed-refresh-${tabId}" class="home-feed-refresh">Refresh</button></div></div>
             <div class="home-feed-controls"><label class="home-feed-topic-label" for="home-feed-topic-${tabId}">Filter by topic</label><input id="home-feed-topic-${tabId}" type="text" maxlength="120" placeholder="Technology, design, finance..." aria-label="News topic"><button id="home-feed-save-${tabId}" class="home-feed-save">Save filter</button></div>
             <p id="home-feed-filter-status-${tabId}" class="home-feed-filter-status" role="status"></p>
             <div class="home-feed-columns"><div><h4>News</h4><div id="home-news-list-${tabId}" class="home-feed-list"><p class="home-feed-empty">Loading headlines...</p></div><button id="home-feed-news-${tabId}" class="home-feed-load">Load news</button></div><div><h4>Jobs & internships</h4><div id="home-jobs-list-${tabId}" class="home-feed-list"><p class="home-feed-empty">Loading opportunities...</p></div><button id="home-feed-jobs-${tabId}" class="home-feed-load">Load jobs</button></div></div>
@@ -922,6 +922,7 @@ function createTab(url = 'pens://home') {
         };
         document.getElementById(`home-feed-news-${tabId}`).onclick = () => loadFeed('news', newsList);
         document.getElementById(`home-feed-jobs-${tabId}`).onclick = () => loadFeed('jobs', jobsList);
+        document.getElementById(`home-feed-focus-${tabId}`).onclick = () => createTab('pens://focus');
         document.getElementById(`home-feed-refresh-${tabId}`).onclick = () => {
           loadFeed('news', newsList);
           loadFeed('jobs', jobsList);
@@ -1229,6 +1230,103 @@ function createTab(url = 'pens://home') {
         };
       }
       document.getElementById(`add-page-btn-${tabId}`).onclick = () => alert("Multi-page support in development!");
+    }, 0);
+  } else if (url === 'pens://focus') {
+    tabObj.titleEl.textContent = 'Focus';
+    viewContainer.innerHTML = `
+      <div class="focus-page">
+        <header class="focus-header">
+          <div><h1>Focus</h1><p>Explore related headlines, jobs, and internships without leaving your workspace.</p></div>
+          <button id="focus-refresh-${tabId}" class="home-feed-refresh">Refresh</button>
+        </header>
+        <div class="focus-controls">
+          <label for="focus-topic-${tabId}">Topic</label>
+          <input id="focus-topic-${tabId}" type="text" maxlength="120" placeholder="Technology, design, finance..." aria-label="Focus topic">
+          <button id="focus-save-${tabId}" class="home-feed-save">Save filter</button>
+          <span id="focus-status-${tabId}" role="status"></span>
+        </div>
+        <div class="focus-columns">
+          <section><h2>News</h2><div id="focus-news-${tabId}" class="focus-list"><p class="home-feed-empty">Loading headlines...</p></div></section>
+          <section><h2>Jobs & internships</h2><div id="focus-jobs-${tabId}" class="focus-list"><p class="home-feed-empty">Loading opportunities...</p></div></section>
+        </div>
+      </div>
+    `;
+    contentArea.appendChild(viewContainer);
+    tabs.push(tabObj);
+    setTimeout(async () => {
+      const topicInput = document.getElementById(`focus-topic-${tabId}`);
+      const newsList = document.getElementById(`focus-news-${tabId}`);
+      const jobsList = document.getElementById(`focus-jobs-${tabId}`);
+      const status = document.getElementById(`focus-status-${tabId}`);
+      let settings = await window.electronAPI.getSettings().catch(() => ({}));
+      topicInput.value = settings.newsTopic || 'technology';
+
+      const renderMessage = (list, message) => {
+        list.replaceChildren();
+        const node = document.createElement('p');
+        node.className = 'home-feed-empty';
+        node.textContent = message;
+        list.appendChild(node);
+      };
+      const renderItems = (list, xml) => {
+        const doc = new DOMParser().parseFromString(xml, 'text/xml');
+        const items = Array.from(doc.querySelectorAll('item')).slice(0, 20).map(item => ({
+          title: item.querySelector('title')?.textContent?.trim() || 'Untitled',
+          link: item.querySelector('link')?.textContent?.trim() || '',
+          date: item.querySelector('pubDate')?.textContent?.trim() || ''
+        })).filter(item => /^https?:\/\//i.test(item.link));
+        list.replaceChildren();
+        if (!items.length) {
+          renderMessage(list, 'No matching results.');
+          return;
+        }
+        items.forEach(item => {
+          const link = document.createElement('a');
+          link.className = 'focus-item';
+          link.href = item.link;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          const title = document.createElement('strong');
+          title.textContent = item.title;
+          const date = document.createElement('small');
+          date.textContent = item.date ? new Date(item.date).toLocaleDateString() : 'Latest';
+          link.append(title, date);
+          list.appendChild(link);
+        });
+      };
+      const load = async (kind, list) => {
+        const topic = topicInput.value.trim();
+        if (!topic) {
+          renderMessage(list, 'Enter a topic first.');
+          return;
+        }
+        renderMessage(list, 'Loading...');
+        try {
+          renderItems(list, await window.electronAPI.fetchHomeFeed(topic, kind));
+        } catch (error) {
+          console.error(`Unable to load focused ${kind} feed:`, error);
+          renderMessage(list, 'Feed unavailable. Check your connection and try again.');
+        }
+      };
+      const loadAll = () => Promise.all([load('news', newsList), load('jobs', jobsList)]);
+      document.getElementById(`focus-refresh-${tabId}`).onclick = loadAll;
+      document.getElementById(`focus-save-${tabId}`).onclick = async () => {
+        const topic = topicInput.value.trim();
+        if (!topic) {
+          status.textContent = 'Enter a topic before saving.';
+          topicInput.focus();
+          return;
+        }
+        try {
+          settings = await window.electronAPI.saveSettings({ ...settings, newsTopic: topic });
+          status.textContent = `Saved filter: ${topic}`;
+          await loadAll();
+        } catch (error) {
+          status.textContent = 'Unable to save this filter.';
+          console.error('Unable to save focused feed filter:', error);
+        }
+      };
+      await loadAll();
     }, 0);
   } else if (url === 'pens://notes') {
     tabObj.titleEl.textContent = 'My Notes';
