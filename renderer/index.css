@@ -528,6 +528,7 @@ body {
   align-items: center;
   justify-content: center;
   background: rgba(32,33,36,.35);
+  pointer-events: auto;
 }
 
 .profile-modal-card {

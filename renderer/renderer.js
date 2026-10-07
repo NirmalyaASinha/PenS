@@ -1158,6 +1158,18 @@ function createTab(url = 'pens://home') {
     `;
     contentArea.appendChild(viewContainer);
     tabs.push(tabObj);
+    const settingsPage = viewContainer.querySelector('.settings-page');
+    if (settingsPage) {
+      addIdentitySettings(tabId, settingsPage).catch(error => console.error('Unable to load identity settings:', error));
+      const securitySection = document.createElement('section');
+      securitySection.className = 'settings-section';
+      securitySection.innerHTML = `
+        <h2>Profile security</h2>
+        <p class="settings-help">This profile uses PenS's encrypted password vault. Profile lock and Windows Hello are not available in this build yet.</p>
+        <p class="settings-help">Keep your Windows account protected and use a strong vault password. Never share exported profile files.</p>
+      `;
+      settingsPage.insertBefore(securitySection, settingsPage.querySelector('hr'));
+    }
 
     setTimeout(async () => {
       const historyList = document.getElementById(`history-list-${tabId}`);
@@ -2034,6 +2046,9 @@ if (btnProfileMenu) {
   const modalProfileName = document.getElementById('modal-profile-name');
   const modalProfileBtnCancel = document.getElementById('modal-profile-btn-cancel');
   const modalProfileBtnCreate = document.getElementById('modal-profile-btn-create');
+  if (newProfileModal && newProfileModal.parentElement !== document.body) {
+    document.body.appendChild(newProfileModal);
+  }
   let selectedProfileColor = '#1a73e8';
   let selectedProfileAvatar = '👤';
 
@@ -2089,10 +2104,19 @@ if (btnProfileMenu) {
         if (modalProfileName) modalProfileName.focus();
         return;
       }
-      newProfileModal.style.display = 'none';
-      const newProfile = await window.electronAPI.createProfile(name, selectedProfileColor, selectedProfileAvatar);
-      if (newProfile && newProfile.id) {
-        window.electronAPI.openProfile(newProfile.id);
+      modalProfileBtnCreate.disabled = true;
+      try {
+        const newProfile = await window.electronAPI.createProfile(name, selectedProfileColor, selectedProfileAvatar);
+        if (!newProfile || !newProfile.id || newProfile.error) {
+          throw new Error('Profile could not be created.');
+        }
+        newProfileModal.style.display = 'none';
+        await window.electronAPI.openProfile(newProfile.id);
+      } catch (error) {
+        console.error('Unable to create profile:', error);
+        alert(`Unable to create profile: ${error.message}`);
+      } finally {
+        modalProfileBtnCreate.disabled = false;
       }
     });
   }
