@@ -1079,6 +1079,7 @@ function createTab(url = 'pens://home') {
         };
         document.getElementById(`home-feed-news-${tabId}`).onclick = () => loadFeed('news', newsList);
         document.getElementById(`home-feed-jobs-${tabId}`).onclick = () => loadFeed('jobs', jobsList);
+        document.getElementById(`home-feed-focus-${tabId}`).onclick = () => createTab('pens://focus');
         document.getElementById(`home-feed-refresh-${tabId}`).onclick = () => {
           loadFeed('news', newsList);
           loadFeed('jobs', jobsList);

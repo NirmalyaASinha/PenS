@@ -31,6 +31,7 @@ Updated: 2026-10-07
 - Prevented repeated password reauthentication errors on Settings load; password lists now stay locked until the user explicitly reauthenticates, and final Home CSS overrides prevent legacy rules from changing pane alignment.
 - Added a Focus button beside Home feed Refresh that opens a dedicated Focus tab with expanded News and Jobs & internships results, saved topic filters, and refresh controls.
 - Updated Home greetings to use the active कलम profile name instead of the Windows account name, and fixed Home search text and placeholder contrast in dark theme.
+- Fixed the live Home Focus button binding; it now opens the dedicated Focus tab instead of relying on the inactive legacy loader.
 - Compacted the Home news panel into bounded two-column lists and added a visible, persisted topic filter with Save filter and reload controls.
 - Enabled usable profile-lock controls in Settings for creating, changing, and removing a PIN/password, with one-time recovery-key display; Windows Hello remains explicitly unavailable until native integration exists.
 - Replaced the About placeholder notice with a feature overview covering browsing, PDF markup, ink, organization, protection, and feeds.
