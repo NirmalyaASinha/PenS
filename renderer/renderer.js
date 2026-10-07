@@ -1944,6 +1944,9 @@ const shieldsEnabled = document.getElementById('shields-enabled');
 const btnClearSiteData = document.getElementById('btn-clear-site-data');
 const btnDownloads = document.getElementById('btn-downloads');
 const btnMenu = document.getElementById('btn-menu');
+const appMenu = document.getElementById('app-menu');
+const btnCustomizeProfile = document.getElementById('btn-customize-profile');
+const btnPasswordsProfile = document.getElementById('btn-passwords-profile');
 
 if (window.electronAPI?.getSettings) {
   window.electronAPI.getSettings().then(settings => applyTheme(settings?.theme)).catch(error => {
@@ -1967,9 +1970,32 @@ if (btnDownloads) {
 if (btnMenu) {
   btnMenu.addEventListener('click', (event) => {
     event.stopPropagation();
-    if (btnProfileMenu) btnProfileMenu.click();
+    if (profileDropdown) profileDropdown.style.display = 'none';
+    if (appMenu) appMenu.style.display = appMenu.style.display === 'none' ? 'block' : 'none';
   });
 }
+
+const menuActions = {
+  'new-tab': () => createTab(),
+  history: () => createTab('pens://history'),
+  downloads: () => createTab('pens://downloads'),
+  bookmarks: () => createTab('pens://bookmarks'),
+  settings: () => createTab('pens://settings'),
+  snapshot: () => btnSnapshot?.click(),
+  'clear-data': () => btnClearSiteData?.click(),
+  'zoom-in': () => applyZoom(0.2),
+  'zoom-out': () => applyZoom(-0.2),
+  fullscreen: () => document.documentElement.requestFullscreen?.(),
+  'new-window': () => window.electronAPI?.newWindow?.(),
+  exit: () => window.electronAPI?.quit?.()
+};
+appMenu?.querySelectorAll('[data-menu-action]').forEach(button => {
+  button.addEventListener('click', () => {
+    const action = menuActions[button.dataset.menuAction];
+    if (action) action();
+    appMenu.style.display = 'none';
+  });
+});
 
 if (btnShields && shieldsPanel) {
   btnShields.addEventListener('click', async (event) => {
@@ -2004,6 +2030,15 @@ if (btnOpenSettings) {
     createTab('pens://settings');
   });
 }
+
+btnCustomizeProfile?.addEventListener('click', () => {
+  profileDropdown.style.display = 'none';
+  createTab('pens://settings');
+});
+btnPasswordsProfile?.addEventListener('click', () => {
+  profileDropdown.style.display = 'none';
+  createTab('pens://settings');
+});
 
 if (btnProfileMenu) {
   btnProfileMenu.addEventListener('click', async () => {
@@ -2139,6 +2174,7 @@ if (btnProfileMenu) {
   // Click outside to close dropdown
   window.addEventListener('click', (e) => {
     if (!e.target.closest('.profile-container')) profileDropdown.style.display = 'none';
+    if (appMenu && !e.target.closest('#app-menu') && !e.target.closest('#btn-menu')) appMenu.style.display = 'none';
     if (shieldsPanel && !e.target.closest('#shields-panel') && !e.target.closest('#btn-shields')) {
       shieldsPanel.style.display = 'none';
     }
