@@ -708,13 +708,20 @@ const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 secureHandle('webview:printToPdf', z.tuple([z.number()]), async (e, profileId, wcId) => {
   const { webContents } = require('electron');
   const wc = webContents.fromId(wcId);
-  if (!wc) return null;
+  const parentWindow = BrowserWindow.fromWebContents(e.sender);
+  if (!wc || wc.getType() !== 'webview' || wc.isDestroyed()) {
+    throw new Error('The active web page is not ready for a snapshot.');
+  }
+  const owner = BrowserWindow.fromWebContents(wc.hostWebContents);
+  if (!owner || windowProfiles.get(owner.id) !== profileId ||
+      parentWindow?.id !== owner.id) {
+    throw new Error('The selected web page does not belong to this profile.');
+  }
   try {
     const data = await wc.printToPDF({ printBackground: true, pageSize: 'A4' });
     const pageTitle = wc.getTitle() || 'snapshot';
     const safeTitle = pageTitle.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim() || 'snapshot';
     const defaultPath = path.join(app.getPath('downloads'), `${safeTitle}.pdf`);
-    const parentWindow = BrowserWindow.fromWebContents(e.sender);
     const result = await dialog.showSaveDialog(parentWindow || undefined, {
       title: 'Save snapshot as PDF',
       defaultPath,
@@ -775,7 +782,13 @@ if (!gotTheLock) {
 
 
 app.whenReady().then(() => {
+  console.info('Hardware acceleration policy: not disabled by कलम; Chromium may fall back to software rendering.');
   console.info('GPU feature status:', app.getGPUFeatureStatus());
+  app.getGPUInfo('complete').then(info => {
+    console.info('GPU information:', info);
+  }).catch(error => {
+    console.warn('GPU information unavailable:', error.message);
+  });
   lockManager.initialize();
   app.setAppUserModelId('com.nirmalyasinha.pens');
   setupPensProtocol(session.defaultSession);

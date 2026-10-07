@@ -510,18 +510,22 @@ const btnSnapshot = document.getElementById('btn-snapshot');
 
 btnSnapshot.addEventListener('click', async () => {
   const tab = getActiveTab();
-  if (tab && tab.webview) {
-    btnSnapshot.style.opacity = '0.5';
-    try {
-      const wcId = tab.webview.getWebContentsId();
-      const pdfPath = await window.electronAPI.printToPdf(wcId);
-      if (pdfPath) createPdfTab(pdfPath);
-    } catch (error) {
-      console.error('Failed to snapshot page:', error);
-      alert(`Unable to save snapshot PDF: ${error.message}`);
-    } finally {
-      btnSnapshot.style.opacity = '1';
-    }
+  if (!tab?.webview) {
+    alert('Snap works on an open web page. Open a website first.');
+    return;
+  }
+  btnSnapshot.style.opacity = '0.5';
+  btnSnapshot.disabled = true;
+  try {
+    const wcId = tab.webview.getWebContentsId();
+    const pdfPath = await window.electronAPI.printToPdf(wcId);
+    if (pdfPath) createPdfTab(pdfPath);
+  } catch (error) {
+    console.error('Failed to snapshot page:', error);
+    alert(`Unable to save snapshot PDF: ${error.message}`);
+  } finally {
+    btnSnapshot.disabled = false;
+    btnSnapshot.style.opacity = '1';
   }
 });
 
@@ -810,7 +814,7 @@ function createTab(url = 'pens://home') {
           </div>
           
           <h3 style="margin-top: 40px; color: #333;">Bookmarks</h3>
-          <div id="home-bookmarks-${tabId}" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 16px; margin-top: 16px;"></div>
+          <div id="home-bookmarks-${tabId}" class="home-bookmarks-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 16px; margin-top: 16px;"></div>
           <section class="home-feed-panel" id="home-feed-${tabId}">
             <div class="home-feed-header"><div><h3>Latest for you</h3><p>Current headlines and opportunities.</p></div><button id="home-feed-refresh-${tabId}" class="home-feed-refresh">Refresh</button></div>
             <div class="home-feed-controls"><label class="home-feed-topic-label" for="home-feed-topic-${tabId}">Filter by topic</label><input id="home-feed-topic-${tabId}" type="text" maxlength="120" placeholder="Technology, design, finance..." aria-label="News topic"><button id="home-feed-save-${tabId}" class="home-feed-save">Save filter</button></div>
@@ -1085,6 +1089,7 @@ function createTab(url = 'pens://home') {
              bookmarksList.innerHTML = '';
              bookmarks.slice(0, 8).forEach(b => {
                const div = document.createElement('div');
+               div.className = 'home-bookmark-item';
                div.style.cssText = 'text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center;';
                const icon = document.createElement('div');
                icon.style.cssText = 'width: 48px; height: 48px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 8px; font-size: 20px; border: 1px solid #eee; color: #1a73e8;';
