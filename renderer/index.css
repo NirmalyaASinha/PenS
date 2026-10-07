@@ -439,6 +439,10 @@ body {
   overflow: hidden;
 }
 
+html {
+  height: 100%;
+}
+
 /* Modernize the current Home markup without changing its behavior. */
 .home-container {
   color: var(--text-color) !important;
@@ -936,8 +940,11 @@ button:hover {
 /* Content Area */
 #content-area {
   flex-grow: 1;
+  min-height: 0;
+  min-width: 0;
   position: relative;
   background-color: white;
+  overflow: hidden;
 }
 
 .view-container {
@@ -947,10 +954,27 @@ button:hover {
   position: absolute;
   top: 0;
   left: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 .view-container.active {
   display: block;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.view-container.active > webview {
+  display: block;
+}
+
+.settings-page {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
 }
 
 .pdf-only-control {

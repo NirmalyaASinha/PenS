@@ -1888,6 +1888,7 @@ function activateTab(tabId) {
     if (tab.id === tabId) {
       tab.el.classList.add('active');
       tab.viewEl.classList.add('active');
+      if (tab.webview) tab.webview.style.pointerEvents = 'auto';
       if (tab.url === 'pens://home') {
         addressBar.value = '';
       } else {
@@ -1901,6 +1902,7 @@ function activateTab(tabId) {
     } else {
       tab.el.classList.remove('active');
       tab.viewEl.classList.remove('active');
+      if (tab.webview) tab.webview.style.pointerEvents = 'none';
     }
   });
   const isPdf = Boolean(getActiveTab() && getActiveTab().pdfViewer);
