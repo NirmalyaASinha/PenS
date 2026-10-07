@@ -24,6 +24,8 @@ Updated: 2026-10-07
 - Added an explicit Windows ICO generated from LOGO.png so packaged executable and shortcut icons cannot fall back to Electron's atom icon.
 - Restored the active Home news and jobs feed loader so feed panels no longer remain stuck on Loading.
 - Fixed lock IPC calls using the removed `lockManager.status()` API; all lock state checks now use `getState()`, and credential verification is exposed on `LockManager`.
+- Improved PDF performance with nearby-page virtualization, cancellable visible-page rendering, transform-based zoom feedback, capped raster scale, visible text layers, packaged PDF.js worker resolution, and a persisted Performance mode.
+- Confirmed no GPU-disabling command-line flags are configured; the main process logs Electron GPU feature status at startup for machine-specific reporting.
 - Enabled usable profile-lock controls in Settings for creating, changing, and removing a PIN/password, with one-time recovery-key display; Windows Hello remains explicitly unavailable until native integration exists.
 - Replaced the About placeholder notice with a feature overview covering browsing, PDF markup, ink, organization, protection, and feeds.
 - Rebuilt the unsigned RC installer and portable artifact after the latest changes.
