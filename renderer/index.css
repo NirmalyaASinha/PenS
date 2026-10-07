@@ -108,22 +108,26 @@
 .settings-footer [role="status"] { color: var(--muted-text); font-size: 13px; }
 .settings-status { display: flex; justify-content: space-between; padding: 12px 0; border-top: 1px solid var(--border-color); font-size: 13px; }
 .settings-status strong { color: var(--muted-text); font-weight: 500; }
-.home-feed-panel { margin-top: 28px; padding: 20px; background: var(--surface); border: 1px solid var(--border-color); border-radius: 14px; }
+.home-feed-panel { margin-top: 28px; padding: 18px; background: var(--surface); border: 1px solid var(--border-color); border-radius: 14px; max-width: 760px; }
 .home-feed-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
 .home-feed-header h3 { margin: 0 0 4px; color: var(--text-color); }
 .home-feed-header p { margin: 0; color: var(--muted-text); font-size: 12px; }
-.home-feed-refresh, .home-feed-controls button { border: 1px solid var(--border-color); border-radius: 7px; background: var(--surface); color: var(--text-color); padding: 8px 11px; cursor: pointer; }
-.home-feed-controls { display: flex; gap: 8px; margin: 16px 0; }
+.home-feed-refresh, .home-feed-controls button, .home-feed-load { border: 1px solid var(--border-color); border-radius: 7px; background: var(--surface); color: var(--text-color); padding: 7px 10px; cursor: pointer; }
+.home-feed-controls { display: grid; grid-template-columns: auto minmax(120px, 1fr) auto; gap: 8px; align-items: center; margin: 14px 0 4px; }
+.home-feed-topic-label { color: var(--muted-text); font-size: 12px; font-weight: 600; white-space: nowrap; }
 .home-feed-controls input { flex: 1; min-width: 0; padding: 9px 11px; border: 1px solid var(--border-color); border-radius: 7px; background: var(--control-bg); color: var(--control-text); }
-.home-feed-columns { display: grid; grid-template-columns: 1fr; gap: 18px; }
+.home-feed-filter-status { min-height: 16px; margin: 0 0 10px; color: var(--muted-text); font-size: 11px; }
+.home-feed-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .home-feed-columns h4 { margin: 0 0 8px; color: var(--text-color); }
-.home-feed-list { display: grid; gap: 8px; }
+.home-feed-list { display: grid; gap: 8px; max-height: 280px; overflow-y: auto; padding-right: 3px; }
 .home-feed-item { display: grid; gap: 5px; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); text-decoration: none; background: var(--surface-subtle); }
 .home-feed-item:hover { border-color: var(--accent-color); }
+.home-feed-load { margin-top: 8px; width: 100%; font-size: 12px; }
 .home-feed-item strong { font-size: 13px; line-height: 1.35; }
 .home-feed-item small, .home-feed-empty { color: var(--muted-text); font-size: 11px; margin: 0; }
 @media (max-width: 700px) {
   .home-feed-controls, .home-feed-columns { grid-template-columns: 1fr; display: grid; }
+  .home-feed-topic-label { white-space: normal; }
 }
 .passwords-list { display: grid; gap: 8px; margin: 16px 0; }
 .password-form { display: grid; grid-template-columns: 1.2fr 1fr 1fr auto; gap: 8px; align-items: center; }

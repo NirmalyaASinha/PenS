@@ -813,8 +813,9 @@ function createTab(url = 'pens://home') {
           <div id="home-bookmarks-${tabId}" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 16px; margin-top: 16px;"></div>
           <section class="home-feed-panel" id="home-feed-${tabId}">
             <div class="home-feed-header"><div><h3>Latest for you</h3><p>Current headlines and opportunities.</p></div><button id="home-feed-refresh-${tabId}" class="home-feed-refresh">Refresh</button></div>
-            <div class="home-feed-controls"><input id="home-feed-topic-${tabId}" type="text" maxlength="120" placeholder="Technology, design, finance..." aria-label="News topic"><button id="home-feed-news-${tabId}">News</button><button id="home-feed-jobs-${tabId}">Jobs & internships</button></div>
-            <div class="home-feed-columns"><div><h4>News</h4><div id="home-news-list-${tabId}" class="home-feed-list"><p class="home-feed-empty">Loading headlines...</p></div></div><div><h4>Jobs & internships</h4><div id="home-jobs-list-${tabId}" class="home-feed-list"><p class="home-feed-empty">Loading opportunities...</p></div></div></div>
+            <div class="home-feed-controls"><label class="home-feed-topic-label" for="home-feed-topic-${tabId}">Filter by topic</label><input id="home-feed-topic-${tabId}" type="text" maxlength="120" placeholder="Technology, design, finance..." aria-label="News topic"><button id="home-feed-save-${tabId}" class="home-feed-save">Save filter</button></div>
+            <p id="home-feed-filter-status-${tabId}" class="home-feed-filter-status" role="status"></p>
+            <div class="home-feed-columns"><div><h4>News</h4><div id="home-news-list-${tabId}" class="home-feed-list"><p class="home-feed-empty">Loading headlines...</p></div><button id="home-feed-news-${tabId}" class="home-feed-load">Load news</button></div><div><h4>Jobs & internships</h4><div id="home-jobs-list-${tabId}" class="home-feed-list"><p class="home-feed-empty">Loading opportunities...</p></div><button id="home-feed-jobs-${tabId}" class="home-feed-load">Load jobs</button></div></div>
           </section>
         </div>
         
@@ -863,8 +864,9 @@ function createTab(url = 'pens://home') {
       
       if (window.electronAPI) {
         const topicInput = document.getElementById(`home-feed-topic-${tabId}`);
-        const savedSettings = await window.electronAPI.getSettings().catch(() => ({}));
+        let savedSettings = await window.electronAPI.getSettings().catch(() => ({}));
         topicInput.value = savedSettings.newsTopic || 'technology';
+        const filterStatus = document.getElementById(`home-feed-filter-status-${tabId}`);
         const parseFeed = (xml) => {
           const doc = new DOMParser().parseFromString(xml, 'text/xml');
           return Array.from(doc.querySelectorAll('item')).slice(0, 6).map(item => ({
@@ -895,7 +897,6 @@ function createTab(url = 'pens://home') {
           if (!topic) { target.innerHTML = '<p class="home-feed-empty">Enter a topic first.</p>'; topicInput.focus(); return; }
           target.innerHTML = '<p class="home-feed-empty">Loading...</p>';
           try {
-            await window.electronAPI.saveSettings({ ...savedSettings, newsTopic: topic });
             renderFeed(target, parseFeed(await window.electronAPI.fetchHomeFeed(topic, kind)));
           } catch (error) {
             console.error('Unable to load home feed:', error);
@@ -904,6 +905,17 @@ function createTab(url = 'pens://home') {
         };
         const newsList = document.getElementById(`home-news-list-${tabId}`);
         const jobsList = document.getElementById(`home-jobs-list-${tabId}`);
+        document.getElementById(`home-feed-save-${tabId}`).onclick = async () => {
+          const topic = topicInput.value.trim();
+          if (!topic) {
+            filterStatus.textContent = 'Enter a topic before saving the filter.';
+            topicInput.focus();
+            return;
+          }
+          savedSettings = await window.electronAPI.saveSettings({ ...savedSettings, newsTopic: topic });
+          filterStatus.textContent = `Saved filter: ${topic}`;
+          await Promise.all([loadFeed('news', newsList), loadFeed('jobs', jobsList)]);
+        };
         document.getElementById(`home-feed-news-${tabId}`).onclick = () => loadFeed('news', newsList);
         document.getElementById(`home-feed-jobs-${tabId}`).onclick = () => loadFeed('jobs', jobsList);
         document.getElementById(`home-feed-refresh-${tabId}`).onclick = () => {
@@ -978,8 +990,9 @@ function createTab(url = 'pens://home') {
         const topicInput = document.getElementById(`home-feed-topic-${tabId}`);
         const newsList = document.getElementById(`home-news-list-${tabId}`);
         const jobsList = document.getElementById(`home-jobs-list-${tabId}`);
-        const savedSettings = await window.electronAPI.getSettings().catch(() => ({}));
+        let savedSettings = await window.electronAPI.getSettings().catch(() => ({}));
         topicInput.value = savedSettings.newsTopic || 'technology';
+        const filterStatus = document.getElementById(`home-feed-filter-status-${tabId}`);
         const parseFeed = (xml) => {
           const doc = new DOMParser().parseFromString(xml, 'text/xml');
           return Array.from(doc.querySelectorAll('item')).slice(0, 6).map(item => ({
@@ -1031,6 +1044,22 @@ function createTab(url = 'pens://home') {
           } catch (error) {
             console.error('Unable to load home feed:', error);
             setFeedMessage(target, 'Feed unavailable. Check your connection and try again.');
+          }
+        };
+        document.getElementById(`home-feed-save-${tabId}`).onclick = async () => {
+          const topic = topicInput.value.trim();
+          if (!topic) {
+            filterStatus.textContent = 'Enter a topic before saving the filter.';
+            topicInput.focus();
+            return;
+          }
+          try {
+            savedSettings = await window.electronAPI.saveSettings({ ...savedSettings, newsTopic: topic });
+            filterStatus.textContent = `Saved filter: ${topic}`;
+            await Promise.all([loadFeed('news', newsList), loadFeed('jobs', jobsList)]);
+          } catch (error) {
+            filterStatus.textContent = 'Unable to save this filter.';
+            console.error('Unable to save home feed filter:', error);
           }
         };
         document.getElementById(`home-feed-news-${tabId}`).onclick = () => loadFeed('news', newsList);

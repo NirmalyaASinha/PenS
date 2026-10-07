@@ -26,6 +26,7 @@ Updated: 2026-10-07
 - Fixed lock IPC calls using the removed `lockManager.status()` API; all lock state checks now use `getState()`, and credential verification is exposed on `LockManager`.
 - Improved PDF performance with nearby-page virtualization, cancellable visible-page rendering, transform-based zoom feedback, capped raster scale, visible text layers, packaged PDF.js worker resolution, and a persisted Performance mode.
 - Confirmed no GPU-disabling command-line flags are configured; the main process logs Electron GPU feature status at startup for machine-specific reporting.
+- Compacted the Home news panel into bounded two-column lists and added a visible, persisted topic filter with Save filter and reload controls.
 - Enabled usable profile-lock controls in Settings for creating, changing, and removing a PIN/password, with one-time recovery-key display; Windows Hello remains explicitly unavailable until native integration exists.
 - Replaced the About placeholder notice with a feature overview covering browsing, PDF markup, ink, organization, protection, and feeds.
 - Rebuilt the unsigned RC installer and portable artifact after the latest changes.
