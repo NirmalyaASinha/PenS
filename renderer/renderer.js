@@ -798,6 +798,11 @@ function createTab(url = 'pens://home') {
           
           <h3 style="margin-top: 40px; color: #333;">Bookmarks</h3>
           <div id="home-bookmarks-${tabId}" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 16px; margin-top: 16px;"></div>
+          <section class="home-feed-panel" id="home-feed-${tabId}">
+            <div class="home-feed-header"><div><h3>Latest for you</h3><p>Current headlines and opportunities.</p></div><button id="home-feed-refresh-${tabId}" class="home-feed-refresh">Refresh</button></div>
+            <div class="home-feed-controls"><input id="home-feed-topic-${tabId}" type="text" maxlength="120" placeholder="Technology, design, finance..." aria-label="News topic"><button id="home-feed-news-${tabId}">News</button><button id="home-feed-jobs-${tabId}">Jobs & internships</button></div>
+            <div class="home-feed-columns"><div><h4>News</h4><div id="home-news-list-${tabId}" class="home-feed-list"><p class="home-feed-empty">Loading headlines...</p></div></div><div><h4>Jobs & internships</h4><div id="home-jobs-list-${tabId}" class="home-feed-list"><p class="home-feed-empty">Loading opportunities...</p></div></div></div>
+          </section>
         </div>
         
         <div class="home-right" style="flex: 1.5; padding: 40px; background: #fafafa; display: flex; flex-direction: column; overflow-y: auto;">
@@ -815,11 +820,6 @@ function createTab(url = 'pens://home') {
           </div>
           
           <div id="notes-grid-${tabId}" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; margin-top: 20px;"></div>
-          <section class="home-feed-panel" id="home-feed-${tabId}">
-            <div class="home-feed-header"><div><h3>Latest for you</h3><p>Choose a topic to see current headlines and opportunities.</p></div><button id="home-feed-refresh-${tabId}" class="home-feed-refresh">Refresh</button></div>
-            <div class="home-feed-controls"><input id="home-feed-topic-${tabId}" type="text" maxlength="120" placeholder="Technology, design, finance..." aria-label="News topic"><button id="home-feed-news-${tabId}">News</button><button id="home-feed-jobs-${tabId}">Jobs & internships</button></div>
-            <div class="home-feed-columns"><div><h4>News</h4><div id="home-news-list-${tabId}" class="home-feed-list"><p class="home-feed-empty">Choose a topic to load headlines.</p></div></div><div><h4>Jobs & internships</h4><div id="home-jobs-list-${tabId}" class="home-feed-list"><p class="home-feed-empty">Choose a topic to load opportunities.</p></div></div></div>
-          </section>
         </div>
       </div>
     `;
@@ -851,7 +851,7 @@ function createTab(url = 'pens://home') {
       if (window.electronAPI) {
         const topicInput = document.getElementById(`home-feed-topic-${tabId}`);
         const savedSettings = await window.electronAPI.getSettings().catch(() => ({}));
-        topicInput.value = savedSettings.newsTopic || '';
+        topicInput.value = savedSettings.newsTopic || 'technology';
         const parseFeed = (xml) => {
           const doc = new DOMParser().parseFromString(xml, 'text/xml');
           return Array.from(doc.querySelectorAll('item')).slice(0, 6).map(item => ({

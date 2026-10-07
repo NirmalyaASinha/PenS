@@ -110,7 +110,7 @@
 .home-feed-refresh, .home-feed-controls button { border: 1px solid var(--border-color); border-radius: 7px; background: var(--surface); color: var(--text-color); padding: 8px 11px; cursor: pointer; }
 .home-feed-controls { display: flex; gap: 8px; margin: 16px 0; }
 .home-feed-controls input { flex: 1; min-width: 0; padding: 9px 11px; border: 1px solid var(--border-color); border-radius: 7px; background: var(--control-bg); color: var(--control-text); }
-.home-feed-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.home-feed-columns { display: grid; grid-template-columns: 1fr; gap: 18px; }
 .home-feed-columns h4 { margin: 0 0 8px; color: var(--text-color); }
 .home-feed-list { display: grid; gap: 8px; }
 .home-feed-item { display: grid; gap: 5px; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-color); text-decoration: none; background: var(--surface-subtle); }
