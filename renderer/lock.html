@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PenS locked</title>
+  <link rel="icon" type="image/png" href="../LOGO.png">
+  <link rel="stylesheet" href="lock.css">
+</head>
+<body>
+  <main class="lock-card">
+    <img id="lock-avatar" class="lock-avatar" src="../LOGO.png" alt="PenS">
+    <h1 id="lock-title">PenS is locked</h1>
+    <p id="lock-profile">Unlock to continue</p>
+    <form id="unlock-form">
+      <label for="unlock-secret">PIN or password</label>
+      <input id="unlock-secret" type="password" autocomplete="current-password" required autofocus>
+      <button id="unlock-button" type="submit">Unlock</button>
+    </form>
+    <p id="lock-status" class="lock-status" role="status"></p>
+  </main>
+  <script src="lock-renderer.js"></script>
+</body>
+</html>

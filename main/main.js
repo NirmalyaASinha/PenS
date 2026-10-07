@@ -43,6 +43,7 @@ const downloadsManager = require('./downloadsManager');
 const { lockManager } = require('./lockManager');
 
 const windowProfiles = new Map();
+const lockWindows = new Map();
 
 // Task 4.1: Certificate errors
 const trustedCerts = new Map();
@@ -112,9 +113,89 @@ function secureHandle(channel, schema, handler) {
   });
 }
 
+function getProfileWindows(profileId) {
+  const lockWindow = lockWindows.get(profileId);
+  return BrowserWindow.getAllWindows().filter((win) => (
+    windowProfiles.get(win.id) === profileId && lockWindow !== win
+  ));
+}
+
+function showProfileWindows(profileId) {
+  getProfileWindows(profileId).forEach((win) => {
+    if (!win.isDestroyed()) {
+      win.show();
+      win.focus();
+      win.setTitle('PenS');
+    }
+  });
+}
+
+function createLockWindow(profileId) {
+  const existing = lockWindows.get(profileId);
+  if (existing && !existing.isDestroyed()) {
+    existing.show();
+    existing.focus();
+    return existing;
+  }
+  const profile = profileManager.getProfile(profileId);
+  const partition = profileId === 'guest' ? 'guest' : `persist:${profileId}`;
+  const lockWindow = new BrowserWindow({
+    width: 460,
+    height: 560,
+    minWidth: 380,
+    minHeight: 460,
+    resizable: false,
+    title: 'PenS',
+    icon: path.join(__dirname, '..', 'LOGO.png'),
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      session: session.fromPartition(partition)
+    }
+  });
+  lockWindows.set(profileId, lockWindow);
+  windowProfiles.set(lockWindow.id, profileId);
+  lockWindow.loadURL('pens://app/renderer/lock.html');
+  lockWindow.webContents.on('did-finish-load', () => {
+    lockWindow.webContents.send('profile-info', profile);
+  });
+  lockWindow.on('closed', () => {
+    windowProfiles.delete(lockWindow.id);
+    if (lockWindows.get(profileId) === lockWindow) lockWindows.delete(profileId);
+  });
+  return lockWindow;
+}
+
+function lockProfileWindows(profileId) {
+  const windows = BrowserWindow.getAllWindows().filter((win) => (
+    windowProfiles.get(win.id) === profileId && lockWindows.get(profileId) !== win
+  ));
+  windows.forEach((win) => {
+    if (!win.isDestroyed()) {
+      win.webContents.send('profile-locked');
+      win.hide();
+      win.setTitle('PenS');
+    }
+  });
+  createLockWindow(profileId);
+}
+
 secureHandle('lock:state', null, async (e, profileId) => lockManager.status(profileId));
-secureHandle('lock:lock', null, async (e, profileId) => lockManager.lock(profileId));
-secureHandle('lock:unlock', z.tuple([z.string().min(1).max(512)]), async (e, profileId, secret) => lockManager.unlock(profileId, secret));
+secureHandle('lock:lock', null, async (e, profileId) => {
+  const state = lockManager.status(profileId);
+  if (!state.credentialConfigured) throw new Error('Set a PIN or password before locking this profile.');
+  const locked = lockManager.lock(profileId);
+  lockProfileWindows(profileId);
+  return locked;
+});
+secureHandle('lock:unlock', z.tuple([z.string().min(1).max(512)]), async (e, profileId, secret) => {
+  const unlocked = lockManager.unlock(profileId, secret);
+  const lockWindow = lockWindows.get(profileId);
+  if (lockWindow && !lockWindow.isDestroyed()) lockWindow.close();
+  showProfileWindows(profileId);
+  return unlocked;
+});
 secureHandle('lock:credential:set', z.tuple([
   z.enum(['pin', 'password']),
   z.string().min(1).max(512),
@@ -252,6 +333,22 @@ function createWindow(profileId = 'default') {
   mainWindow.webContents.on('before-input-event', (event, input) => {
     if (input.type === 'keyDown') {
       const key = input.key.toLowerCase();
+      if (input.control && input.shift && key === 'l') {
+        event.preventDefault();
+        const currentProfileId = windowProfiles.get(mainWindow.id);
+        if (currentProfileId) {
+          try {
+            const state = lockManager.status(currentProfileId);
+            if (state.credentialConfigured && !lockManager.isLocked(currentProfileId)) {
+              lockManager.lock(currentProfileId);
+              lockProfileWindows(currentProfileId);
+            }
+          } catch (error) {
+            console.error('Unable to lock profile:', error.message);
+          }
+        }
+        return;
+      }
       if ((input.control && key === 'r') || key === 'f5') {
         event.preventDefault();
         mainWindow.webContents.send('tab:reload-active', { ignoreCache: !!input.shift });
@@ -265,6 +362,10 @@ function createWindow(profileId = 'default') {
   mainWindow.webContents.on('did-finish-load', () => {
     mainWindow.webContents.send('profile-info', profile);
     mainWindow.webContents.send('settings-loaded', settings);
+    if (lockManager.isLocked(profile.id)) {
+      mainWindow.hide();
+      createLockWindow(profile.id);
+    }
   });
 
   mainWindow.on('closed', () => {

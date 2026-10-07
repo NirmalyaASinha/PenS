@@ -2036,6 +2036,7 @@ const shieldsPanel = document.getElementById('shields-panel');
 const shieldsEnabled = document.getElementById('shields-enabled');
 const btnClearSiteData = document.getElementById('btn-clear-site-data');
 const btnDownloads = document.getElementById('btn-downloads');
+const btnLock = document.getElementById('btn-lock');
 const btnMenu = document.getElementById('btn-menu');
 const appMenu = document.getElementById('app-menu');
 const btnCustomizeProfile = document.getElementById('btn-customize-profile');
@@ -2056,6 +2057,16 @@ if (btnDownloads) {
       alert(items.length ? items.map(item => item.filename || item.url || 'Download').join('\n') : 'No downloads yet.');
     } catch (error) {
       console.error('Unable to load downloads:', error);
+    }
+
+    if (btnLock) {
+      btnLock.addEventListener('click', async () => {
+        try {
+          await window.electronAPI.lockProfile();
+        } catch (error) {
+          alert(error.message || 'Unable to lock this profile.');
+        }
+      });
     }
   });
 }
